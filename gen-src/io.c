@@ -20,3 +20,15 @@ Str read_file(char *path) {
 
   return content;
 }
+
+bool write_file(char *path, Str content) {
+  FILE *file = fopen(path, "w");
+  if (!file) {
+    return false;
+  }
+
+  fprintf(file, STR_FMT, STR_ARG(content));
+  fclose(file);
+
+  return true;
+}

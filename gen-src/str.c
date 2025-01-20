@@ -88,6 +88,17 @@ void sb_push_str(StringBuilder *sb, Str str) {
   sb->len += str.len;
 }
 
+
+void sb_push_str_uppercase(StringBuilder *sb, Str str) {
+  sb_reserve_space(sb, str.len);
+  for (u32 i = 0; i < str.len; ++i) {
+      sb->buffer[sb->len + i] = str.ptr[i];
+    if (str.ptr[i] >= 97 && str.ptr[i] <= 122)
+      sb->buffer[sb->len + i] -= 32;
+  }
+  sb->len += str.len;
+}
+
 void sb_push_i32(StringBuilder *sb, i32 num) {
   i32 _num = num;
   i32 len = 1;
@@ -98,5 +109,37 @@ void sb_push_i32(StringBuilder *sb, i32 num) {
   }
 
   snprintf(sb->buffer + sb->len, len + 1, "%d", num);
+  sb->len += len;
+}
+
+void sb_push_i64(StringBuilder *sb, i64 num) {
+  i64 _num = num;
+  u32 len = 1;
+
+  while (_num >= 10) {
+    _num /= 10;
+    len++;
+  }
+
+  sb_reserve_space(sb, len);
+  snprintf(sb->buffer + sb->len, len + 1, "%ld", num);
+  sb->len += len;
+}
+
+void sb_push_u32(StringBuilder *sb, u32 num) {
+  sb_push_u64(sb, num);
+}
+
+void sb_push_u64(StringBuilder *sb, u64 num) {
+  u64 _num = num;
+  u32 len = 1;
+
+  while (_num >= 10) {
+    _num /= 10;
+    len++;
+  }
+
+  sb_reserve_space(sb, len);
+  snprintf(sb->buffer + sb->len, len + 1, "%lu", num);
   sb->len += len;
 }

@@ -34,6 +34,10 @@ Str sb_to_str(StringBuilder sb);
 void sb_push(StringBuilder *sb, char *str);
 void sb_push_char(StringBuilder *sb, char ch);
 void sb_push_str(StringBuilder *sb, Str str);
+void sb_push_str_uppercase(StringBuilder *sb, Str str);
 void sb_push_i32(StringBuilder *sb, i32 num);
+void sb_push_i64(StringBuilder *sb, i64 num);
+void sb_push_u32(StringBuilder *sb, u32 num);
+void sb_push_u64(StringBuilder *sb, u64 num);
 
 #endif // STR_H
