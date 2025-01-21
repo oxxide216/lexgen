@@ -13,16 +13,18 @@ int main(void) {
                      transition_table_test1,
                      ARRAY_LEN(transition_table_test1));
 
-  u32 matched;
+  Str lexeme;
+  u32 matched_table_id;
   while (true) {
-    u32 lexeme_len = 0;
-    matched = matcher_match(&matcher, text, &lexeme_len);
-    if (matched == (u32) -1)
+    lexeme = matcher_match(&matcher, &text, &matched_table_id);
+    if (lexeme.len == 0)
       break;
 
-    printf(STR_FMT"\n", STR_ARG(text));
-    text.ptr += lexeme_len;
-    text.len -= lexeme_len;
+    if (text.len == 0)
+      text = STR_LIT("EOF");
+    printf("%u :: "STR_FMT" :: "STR_FMT"\n",
+           matched_table_id, STR_ARG(lexeme),
+           STR_ARG(text));
   }
 
   return 0;

@@ -28,12 +28,21 @@ void matcher_push_table(Matcher *matcher, TransitionRow *rows, u32 rows_count) {
   DA_APPEND(matcher->tables, new_table);
 }
 
-u32 matcher_match(Matcher *matcher, Str text, u32 *lexeme_len) {
+Str matcher_match(Matcher *matcher, Str *text, u32 *matched_table_id) {
+  Str lexeme = { text->ptr, 0 };
+
   for (u32 i = 0; i < matcher->tables.len; ++i) {
-    *lexeme_len = 0;
-    if (table_matches(matcher->tables.items + i, text, lexeme_len))
-      return i;
+    u32 new_lexeme_len = 0;
+    if (table_matches(matcher->tables.items + i, *text, &new_lexeme_len) &&
+        new_lexeme_len > lexeme.len) {
+      lexeme.len = new_lexeme_len;
+      if (matched_table_id)
+        *matched_table_id = i;
+    }
   }
 
-  return (u32) -1;
+  text->ptr += lexeme.len;
+  text->len -= lexeme.len;
+
+  return lexeme;
 }
