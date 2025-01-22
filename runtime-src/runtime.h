@@ -2,9 +2,10 @@
 #include "str.h"
 
 typedef struct {
-  u32  prev_state;
-  char next_char;
-  u32  new_state;
+  u32 prev_state;
+  i8  min_char;
+  i8  max_char;
+  u32 next_state;
 } TransitionRow;
 
 typedef struct {

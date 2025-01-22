@@ -7,11 +7,12 @@
 typedef enum {
   AtomKindChar = 0,
   AtomKindRange,
-  AtomKindStar,
+  AtomKindLoop,
+  AtomKindWhitespace,
 } AtomKind;
 
 typedef struct {
-  char min, max;
+  i8 min, max;
 } Range;
 
 typedef struct Atom Atom;
@@ -19,7 +20,7 @@ typedef struct Atom Atom;
 typedef union {
   char   _char;
   Range  range;
-  Atom  *star;
+  Atom  *loop;
 } AtomAs;
 
 struct Atom {
@@ -65,12 +66,15 @@ Atom *lex_line(Str source_text, i8 delimeter, u32 *i) {
         ERROR("No operand was found\n");
         exit(1);
       }
+      if (result_end->kind == AtomKindLoop) {
+        ERROR("Loop recursion detected\n");
+        exit(1);
+      }
 
       Atom *new_atom = aalloc(sizeof(Atom));
       *new_atom = (Atom) { result_end->kind, result_end->as, NULL };
-
       LL_PREPEND(result, result_end, Atom);
-      *result_end = (Atom) { AtomKindStar, { .star = new_atom }, NULL };
+      *result_end = (Atom) { AtomKindLoop, { .loop = new_atom }, NULL };
     } break;
 
     case '*': {
@@ -78,16 +82,47 @@ Atom *lex_line(Str source_text, i8 delimeter, u32 *i) {
         ERROR("No operand was found\n");
         exit(1);
       }
+      if (result_end->kind == AtomKindLoop) {
+        ERROR("Loop recursion detected\n");
+        exit(1);
+      }
 
       Atom *new_atom = aalloc(sizeof(Atom));
-
       *new_atom = *result_end;
-      *result_end = (Atom) { AtomKindStar, { .star = new_atom }, NULL };
+      *result_end = (Atom) { AtomKindLoop, { .loop = new_atom }, NULL };
+    } break;
+
+    case '$': {
+      LL_PREPEND(result, result_end, Atom);
+      *result_end = (Atom) { AtomKindWhitespace, {0}, NULL };
+    } break;
+
+    case '-': {
+      if (!result_end || *i + 1 >= source_text.len) {
+        ERROR("No operand was found\n");
+        exit(1);
+      }
+      if (result_end->kind != AtomKindChar) {
+        ERROR("Operands of range should be characters\n");
+        exit(1);
+      }
+
+      *result_end = (Atom) {
+        AtomKindRange,
+        { .range = { result_end->as._char, ' ' } },
+        NULL
+      };
     } break;
 
     default: {
-      LL_PREPEND(result, result_end, Atom);
-      *result_end = (Atom) { AtomKindChar, { _char = _char }, NULL };
+      Atom new_atom = { AtomKindChar, { _char = _char }, NULL };
+
+      if (result_end && result_end->kind == AtomKindRange) {
+        result_end->as.range.max = _char;
+      } else {
+        LL_PREPEND(result, result_end, Atom);
+        *result_end = new_atom;
+      }
     } break;
     }
   }
@@ -113,6 +148,11 @@ Defs create_defs(Str source_text) {
       ++i;
     }
 
+    if (name.len == 0) {
+      ERROR("Expected identifier, but got %c\n", source_text.ptr[i]);
+      exit(1);
+    }
+
     if (i == source_text.len) {
       ERROR("Expected `=`, but got EOF\n");
       exit(1);
@@ -131,32 +171,6 @@ Defs create_defs(Str source_text) {
   return defs;
 }
 
-void print_atoms(Atom *atoms) {
-  Atom *atom = atoms;
-
-  while (atom) {
-    if (atom != atoms)
-      putc(' ', stdout);
-
-    switch (atom->kind) {
-    case AtomKindChar: {
-      putc(atom->as._char, stdout);
-    } break;
-
-    case AtomKindRange: {
-      printf("%c-%c", atom->as.range.min, atom->as.range.max);
-    } break;
-
-    case AtomKindStar: {
-      print_atoms(atom->as.star);
-      putc('*', stdout);
-    } break;
-    }
-
-    atom = atom->next;
-  }
-}
-
 void sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 state, bool is_in_loop) {
   Atom *atom = atoms;
   while (atom) {
@@ -166,6 +180,8 @@ void sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 state, bool is_in_loop) {
       sb_push_u32(sb, state);
       sb_push(sb, ", '");
       sb_push_char(sb, atom->as._char);
+      sb_push(sb, "', '");
+      sb_push_char(sb, atom->as._char);
       sb_push(sb, "', ");
 
       if (!is_in_loop)
@@ -174,33 +190,70 @@ void sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 state, bool is_in_loop) {
       if (atom->next || is_in_loop)
         sb_push_u32(sb, state);
       else
-        sb_push_u32(sb, 0);
+        sb_push_char(sb, '0');
 
       sb_push(sb, " },\n");
     } break;
 
     case AtomKindRange: {
-      ERROR("not implemented\n");
-      exit(1);
+      sb_push(sb, "  { ");
+      sb_push_u32(sb, state);
+      sb_push(sb, ", '");
+      sb_push_char(sb, atom->as.range.min);
+      sb_push(sb, "', '");
+      sb_push_char(sb, atom->as.range.max);
+      sb_push(sb, "', ");
+
+      if (!is_in_loop)
+        ++state;
+
+      if (atom->next || is_in_loop)
+        sb_push_u32(sb, state);
+      else
+        sb_push_char(sb, '0');
+
+      sb_push(sb, " },\n");
     } break;
 
-    case AtomKindStar: {
+    case AtomKindLoop: {
       u32 prev_state = state;
-      sb_push_atoms(sb, atom->as.star, state, true);
+      sb_push_atoms(sb, atom->as.loop, state, true);
       state = prev_state;
 
       sb_push(sb, "  { ");
       sb_push_u32(sb, state);
-      sb_push(sb, ", ");
-      sb_push(sb, "(i8) -1");
-      sb_push(sb, ", ");
+      sb_push(sb, ", -1, -1, ");
 
       if (atom->next)
-        sb_push_u32(sb, state);
+        sb_push_u32(sb, ++state);
       else
-        sb_push_u32(sb, 0);
+        sb_push_char(sb, '0');
 
       sb_push(sb, " },\n");
+    } break;
+
+    case AtomKindWhitespace: {
+      char *whitespace[] = { " ", "\\n", "\\t" };
+
+      for (u32 i = 0; i < ARRAY_LEN(whitespace); ++i) {
+        sb_push(sb, "  { ");
+        sb_push_u32(sb, state);
+        sb_push(sb, ", '");
+        sb_push(sb, whitespace[i]);
+        sb_push(sb, "', '");
+        sb_push(sb, whitespace[i]);
+        sb_push(sb, "', ");
+
+        if (!is_in_loop)
+          ++state;
+
+        if (atom->next || is_in_loop)
+          sb_push_u32(sb, state);
+        else
+          sb_push_u32(sb, 0);
+
+        sb_push(sb, " },\n");
+      }
     } break;
     }
 

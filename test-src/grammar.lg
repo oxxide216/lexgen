@@ -1,2 +1,7 @@
-test0=text+
-test1=t*y
+skip=$*
+ident=a-z+
+number=0-9+
+op_add=\+
+op_sub=\-
+op_mul=\*
+op_div=/

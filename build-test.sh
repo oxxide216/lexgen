@@ -2,6 +2,6 @@
 
 CFLAGS="-Wall -Wextra"
 SRC="$(find test-src -name "*.c")"
-LIB_SRC="$(find lib-src -name "*.c")"
+RUNTIME_SRC="$(find runtime-src -name "*.c")"
 
-cc -o test $CFLAGS "${@:1}" $SRC $LIB_SRC
+cc -o test $CFLAGS "${@:1}" $SRC $RUNTIME_SRC
