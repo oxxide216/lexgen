@@ -9,18 +9,25 @@ typedef enum {
   AtomKindRange,
   AtomKindLoop,
   AtomKindWhitespace,
+  AtomKindOr,
 } AtomKind;
+
+typedef struct Atom Atom;
 
 typedef struct {
   i8 min, max;
 } Range;
 
-typedef struct Atom Atom;
+typedef struct {
+  Atom *lhs;
+  Atom *rhs;
+} Or;
 
 typedef union {
   char   _char;
   Range  range;
   Atom  *loop;
+  Or     or;
 } AtomAs;
 
 struct Atom {
@@ -36,12 +43,12 @@ typedef struct {
 
 typedef Da(Def) Defs;
 
-Atom *lex_line(Str source_text, i8 delimeter, u32 *i) {
+Atom *parse(Str source_text, i8 delimiter, u32 *i) {
   Atom *result = NULL;
   Atom *result_end = NULL;
   bool is_escaped = false;
 
-  while (*i < source_text.len && source_text.ptr[*i] != delimeter) {
+  while (*i < source_text.len && source_text.ptr[*i] != delimiter) {
     i8 _char = source_text.ptr[*i];
 
     ++*i;
@@ -114,6 +121,19 @@ Atom *lex_line(Str source_text, i8 delimeter, u32 *i) {
       };
     } break;
 
+    case '|': {
+      if (!result_end || *i + 1 >= source_text.len) {
+        ERROR("No operand was found\n");
+        exit(1);
+      }
+
+      Atom *rhs = parse(source_text, '\n', i);
+      Atom *new_atom = aalloc(sizeof(Atom));
+      *new_atom = (Atom) { AtomKindOr, { .or = { result, rhs } }, NULL };
+      result = new_atom;
+      result_end = new_atom;
+    } break;
+
     default: {
       Atom new_atom = { AtomKindChar, { _char = _char }, NULL };
 
@@ -162,7 +182,7 @@ Defs create_defs(Str source_text) {
       exit(1);
     }
 
-    Atom *atoms = lex_line(source_text, '\n', &i);
+    Atom *atoms = parse(source_text, '\n', &i);
 
     Def new_def = { name, atoms };
     DA_APPEND(defs, new_def);
@@ -254,6 +274,11 @@ void sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 state, bool is_in_loop) {
 
         sb_push(sb, " },\n");
       }
+    } break;
+
+    case AtomKindOr: {
+      sb_push_atoms(sb, atom->as.or.lhs, state, is_in_loop);
+      sb_push_atoms(sb, atom->as.or.rhs, state, is_in_loop);
     } break;
     }
 
