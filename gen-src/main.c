@@ -10,6 +10,7 @@ typedef enum {
   AtomKindLoop,
   AtomKindWhitespace,
   AtomKindOr,
+  AtomKindBlock,
 } AtomKind;
 
 typedef struct Atom Atom;
@@ -19,6 +20,11 @@ typedef struct {
 } Range;
 
 typedef struct {
+  Atom *body;
+  bool  is_from_star;
+} Loop;
+
+typedef struct {
   Atom *lhs;
   Atom *rhs;
 } Or;
@@ -26,8 +32,9 @@ typedef struct {
 typedef union {
   char   _char;
   Range  range;
-  Atom  *loop;
+  Loop   loop;
   Or     or;
+  Atom  *block;
 } AtomAs;
 
 struct Atom {
@@ -43,12 +50,15 @@ typedef struct {
 
 typedef Da(Def) Defs;
 
-Atom *parse(Str source_text, i8 delimiter, u32 *i) {
+Atom *parse(Str source_text, u32 *i, bool is_in_block) {
   Atom *result = NULL;
   Atom *result_end = NULL;
   bool is_escaped = false;
 
-  while (*i < source_text.len && source_text.ptr[*i] != delimiter) {
+  while (*i < source_text.len &&
+         (source_text.ptr[*i] != '\n'&&
+         (source_text.ptr[*i] != ')' ||
+          is_in_block))) {
     i8 _char = source_text.ptr[*i];
 
     ++*i;
@@ -81,7 +91,7 @@ Atom *parse(Str source_text, i8 delimiter, u32 *i) {
       Atom *new_atom = aalloc(sizeof(Atom));
       *new_atom = (Atom) { result_end->kind, result_end->as, NULL };
       LL_PREPEND(result, result_end, Atom);
-      *result_end = (Atom) { AtomKindLoop, { .loop = new_atom }, NULL };
+      *result_end = (Atom) { AtomKindLoop, { .loop = { new_atom, false } }, NULL };
     } break;
 
     case '*': {
@@ -96,7 +106,7 @@ Atom *parse(Str source_text, i8 delimiter, u32 *i) {
 
       Atom *new_atom = aalloc(sizeof(Atom));
       *new_atom = *result_end;
-      *result_end = (Atom) { AtomKindLoop, { .loop = new_atom }, NULL };
+      *result_end = (Atom) { AtomKindLoop, { .loop = { new_atom, true } }, NULL };
     } break;
 
     case '$': {
@@ -122,17 +132,27 @@ Atom *parse(Str source_text, i8 delimiter, u32 *i) {
     } break;
 
     case '|': {
-      if (!result_end || *i + 1 >= source_text.len) {
+      if (!result || *i + 1 >= source_text.len) {
         ERROR("No operand was found\n");
         exit(1);
       }
 
-      Atom *rhs = parse(source_text, '\n', i);
+      Atom *rhs = parse(source_text, i, is_in_block);
+      --*i;
       Atom *new_atom = aalloc(sizeof(Atom));
       *new_atom = (Atom) { AtomKindOr, { .or = { result, rhs } }, NULL };
       result = new_atom;
       result_end = new_atom;
     } break;
+
+    case '(': {
+      Atom *body = parse(source_text, i, true);
+      --*i;
+      LL_PREPEND(result, result_end, Atom);
+      *result_end = (Atom) { AtomKindBlock, { .block = body }, NULL };
+    } break;
+
+    case ')': break;
 
     default: {
       Atom new_atom = { AtomKindChar, { _char = _char }, NULL };
@@ -182,7 +202,21 @@ Defs create_defs(Str source_text) {
       exit(1);
     }
 
-    Atom *atoms = parse(source_text, '\n', &i);
+    Atom *atoms = parse(source_text, &i, false);
+
+    Atom *last_atom = NULL;
+    Atom *atom = atoms;
+    while (atom) {
+      if (!atom->next)
+        last_atom = atom;
+      atom = atom->next;
+    }
+    if (last_atom &&
+        last_atom->kind == AtomKindLoop &&
+        last_atom->as.loop.is_from_star) {
+      ERROR("Last atom should not be star\n");
+      exit(1);
+    }
 
     Def new_def = { name, atoms };
     DA_APPEND(defs, new_def);
@@ -237,7 +271,7 @@ void sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 state, bool is_in_loop) {
 
     case AtomKindLoop: {
       u32 prev_state = state;
-      sb_push_atoms(sb, atom->as.loop, state, true);
+      sb_push_atoms(sb, atom->as.loop.body, state, true);
       state = prev_state;
 
       sb_push(sb, "  { ");
@@ -279,6 +313,10 @@ void sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 state, bool is_in_loop) {
     case AtomKindOr: {
       sb_push_atoms(sb, atom->as.or.lhs, state, is_in_loop);
       sb_push_atoms(sb, atom->as.or.rhs, state, is_in_loop);
+    } break;
+
+    case AtomKindBlock: {
+      sb_push_atoms(sb, atom->as.block, state, is_in_loop);
     } break;
     }
 

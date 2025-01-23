@@ -3,10 +3,12 @@
 #include "str.h"
 
 int main(void) {
-  Str text = STR_LIT("228 + 1337 * bruh / capybara");
+  Str text = STR_LIT("228+1337*bruh/capybara:xy-yx");
   Matcher matcher = {0};
   matcher_push_table(&matcher, transition_table_skip,
                      ARRAY_LEN(transition_table_skip));
+  matcher_push_table(&matcher, transition_table_xy,
+                     ARRAY_LEN(transition_table_xy));
   matcher_push_table(&matcher, transition_table_ident,
                      ARRAY_LEN(transition_table_ident));
   matcher_push_table(&matcher, transition_table_number,

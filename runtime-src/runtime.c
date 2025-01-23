@@ -47,11 +47,10 @@ Str matcher_match(Matcher *matcher, Str *text, u32 *matched_table_id) {
   for (u32 i = 0; i < matcher->tables.len; ++i) {
     u32 new_lexeme_len = 0;
     if (table_matches(matcher->tables.items + i, *text, &new_lexeme_len)) {
-      if (new_lexeme_len > lexeme.len) {
-        lexeme.len = new_lexeme_len;
-        if (matched_table_id)
-          *matched_table_id = i;
-      }
+      lexeme.len = new_lexeme_len;
+      if (matched_table_id)
+        *matched_table_id = i;
+      break;
     }
   }
 
