@@ -4,7 +4,7 @@ static bool table_matches(TransitionTable *table, Str text, u32 *lexeme_len) {
   u32 state = 1;
   u32 last_used_row_index = 0;
 
-  for (u32 i = 0; i <= text.len; ++i) {
+  for (u32 i = 0; i <= (u32) text.len; ++i) {
     bool result = false;
 
     for (u32 j = last_used_row_index; j < table->rows_count; ++j) {

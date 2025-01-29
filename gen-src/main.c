@@ -65,6 +65,12 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
 
     if (is_escaped) {
       is_escaped = false;
+
+      if (_char == 'n')
+        _char = '\n';
+      else if (_char == 't')
+        _char = '\t';
+
       LL_PREPEND(result, result_end, Atom);
       *result_end = (Atom) {
         AtomKindChar,
@@ -126,8 +132,8 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
 
       *result_end = (Atom) {
         AtomKindRange,
-        { .range = { result_end->as._char, ' ' } },
-        NULL
+        { .range = { result_end->as._char, 0 } },
+        NULL,
       };
     } break;
 
@@ -288,18 +294,19 @@ void sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 state, bool is_in_loop) {
 
     case AtomKindWhitespace: {
       char *whitespace[] = { " ", "\\n", "\\t" };
+      u32 prev_state = state;
+
+      if (!is_in_loop)
+        ++state;
 
       for (u32 i = 0; i < ARRAY_LEN(whitespace); ++i) {
         sb_push(sb, "  { ");
-        sb_push_u32(sb, state);
+        sb_push_u32(sb, prev_state);
         sb_push(sb, ", '");
         sb_push(sb, whitespace[i]);
         sb_push(sb, "', '");
         sb_push(sb, whitespace[i]);
         sb_push(sb, "', ");
-
-        if (!is_in_loop)
-          ++state;
 
         if (atom->next || is_in_loop)
           sb_push_u32(sb, state);
@@ -331,7 +338,11 @@ Str defs_gen_code(Defs *defs) {
   sb_push(&sb, "#define LEXGEN_TRANSITION_TABLE\n\n");
 
   for (u32 i = 0; i < defs->len; ++i) {
-    sb_push(&sb, "TransitionRow transition_table_");
+    sb_push(&sb, "#define TT_");
+    sb_push_str_uppercase(&sb, defs->items[i].name);
+    sb_push_char(&sb, ' ');
+    sb_push_u32(&sb, i);
+    sb_push(&sb, "\nTransitionRow tt_");
     sb_push_str(&sb, defs->items[i].name);
     sb_push(&sb, "[] = { \n");
 
@@ -348,12 +359,12 @@ Str defs_gen_code(Defs *defs) {
 
 int main(i32 argv, char **argc) {
   if (argv < 2) {
-    ERROR("output file was not provided\n");
+    ERROR("Output file was not provided\n");
     exit(1);
   }
 
   if (argv < 3) {
-    ERROR("input file was not provided\n");
+    ERROR("Input file was not provided\n");
     return 1;
   }
 
