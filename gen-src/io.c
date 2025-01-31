@@ -27,7 +27,7 @@ bool write_file(char *path, Str content) {
     return false;
   }
 
-  fprintf(file, STR_FMT, STR_ARG(content));
+  fwrite(content.ptr, sizeof(*content.ptr), content.len, file);
   fclose(file);
 
   return true;
