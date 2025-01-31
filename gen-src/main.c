@@ -50,6 +50,17 @@ typedef struct {
 
 typedef Da(Def) Defs;
 
+typedef struct {
+  char _char;
+  char escaped_char;
+} EscapedCharPair;
+
+EscapedCharPair ecps[] = {
+  { 'n', '\n' },
+  { 'r', '\r' },
+  { 't', '\t' },
+};
+
 Atom *parse(Str source_text, u32 *i, bool is_in_block) {
   Atom *result = NULL;
   Atom *result_end = NULL;
@@ -64,19 +75,25 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
     ++*i;
 
     if (is_escaped) {
+      for (u32 j = 0; j < ARRAY_LEN(ecps); ++j) {
+        if (_char == ecps[j]._char) {
+          _char = ecps[j].escaped_char;
+          break;
+        }
+      }
+
+      Atom new_atom = { AtomKindChar, { _char = _char }, NULL };
+
+      if (result_end &&
+          result_end->kind == AtomKindRange &&
+          result_end->as.range.max == 0) {
+        result_end->as.range.max = _char;
+      } else {
+        LL_PREPEND(result, result_end, Atom);
+        *result_end = new_atom;
+      }
+
       is_escaped = false;
-
-      if (_char == 'n')
-        _char = '\n';
-      else if (_char == 't')
-        _char = '\t';
-
-      LL_PREPEND(result, result_end, Atom);
-      *result_end = (Atom) {
-        AtomKindChar,
-        { _char = _char },
-        NULL
-      };
       continue;
     } else if (_char == '\\') {
       is_escaped = true;
@@ -173,6 +190,8 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
       }
     } break;
     }
+
+    is_escaped = false;
   }
 
   ++*i;
@@ -238,11 +257,24 @@ void sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 state, bool is_in_loop) {
   while (atom) {
     switch (atom->kind) {
     case AtomKindChar: {
+      bool is_escaped = false;
+      for (u32 i = 0; i < ARRAY_LEN(ecps); ++i) {
+        if (atom->as._char == ecps[i].escaped_char) {
+          atom->as._char = ecps[i]._char;
+          is_escaped = true;
+          break;
+        }
+      }
+
       sb_push(sb, "  { ");
       sb_push_u32(sb, state);
       sb_push(sb, ", '");
+      if (is_escaped)
+        sb_push_char(sb, '\\');
       sb_push_char(sb, atom->as._char);
       sb_push(sb, "', '");
+      if (is_escaped)
+        sb_push_char(sb, '\\');
       sb_push_char(sb, atom->as._char);
       sb_push(sb, "', ");
 
