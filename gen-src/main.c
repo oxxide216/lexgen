@@ -204,8 +204,14 @@ Defs create_defs(Str source_text) {
 
   u32 i = 0;
   while (i < source_text.len) {
-    if (source_text.ptr[i] == '\n')
+    if (source_text.ptr[i] == '\n') {
+      ++i;
       continue;
+    } else if (source_text.ptr[i] == '#') {
+      while (i < source_text.len && source_text.ptr[i] != '\n')
+        ++i;
+      ++i;
+    }
 
     Str name = STR(source_text.ptr + i, 0);
     while (i < source_text.len &&
