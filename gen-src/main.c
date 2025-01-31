@@ -163,7 +163,9 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
     default: {
       Atom new_atom = { AtomKindChar, { _char = _char }, NULL };
 
-      if (result_end && result_end->kind == AtomKindRange) {
+      if (result_end &&
+          result_end->kind == AtomKindRange &&
+          result_end->as.range.min == 0) {
         result_end->as.range.max = _char;
       } else {
         LL_PREPEND(result, result_end, Atom);
