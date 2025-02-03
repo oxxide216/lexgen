@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "arena.h"
+#include "log.h"
 
 #define DEFAULT_ARENA_CAP 256
 
@@ -16,7 +17,7 @@ static Arena *arena = NULL;
 static Arena *last_arena = NULL;
 
 static Arena *create_arena(u32 cap) {
-  Arena *_arena = malloc(sizeof(Arena) + cap);
+  Arena *_arena = malloc(sizeof(Arena) + sizeof(u8) * cap);
   _arena->buffer = (u8 *) _arena + sizeof(Arena);
   _arena->cap = cap;
   _arena->len = 0;
@@ -28,14 +29,18 @@ static Arena *create_arena(u32 cap) {
 void *aalloc(u32 amount) {
   if (amount > DEFAULT_ARENA_CAP)
     arena = create_arena(amount);
-  if (!arena)
+  else
     arena = create_arena(DEFAULT_ARENA_CAP);
 
   Arena *_arena = arena;
 
   while (_arena->len + amount > _arena->cap) {
-    if (!_arena->next)
-      _arena->next = create_arena(DEFAULT_ARENA_CAP);
+    if (!_arena->next) {
+      u32 new_arena_cap = DEFAULT_ARENA_CAP;
+      if (amount > new_arena_cap)
+        new_arena_cap = amount;
+      _arena->next = create_arena(new_arena_cap);
+    }
     _arena = _arena->next;
   }
 

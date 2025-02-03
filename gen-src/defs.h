@@ -15,13 +15,13 @@
 #define DA_APPEND(da, element)                                        \
   do {                                                                \
     if ((da).cap <= (da).len) {                                       \
-      if ((da).cap != 0) {                                            \
+      if ((da).cap == 0) {                                            \
+        (da).cap = 1;                                                 \
+        (da).items = malloc(sizeof(element));                         \
+      } else {                                                        \
         while ((da).cap <= (da).len)                                  \
           (da).cap *= 2;                                              \
         (da).items = realloc((da).items, sizeof(element) * (da).cap); \
-      } else {                                                        \
-        (da).cap = 1;                                                 \
-        (da).items = malloc(sizeof(element));                         \
       }                                                               \
     }                                                                 \
     (da).items[(da).len++] = element;                                 \

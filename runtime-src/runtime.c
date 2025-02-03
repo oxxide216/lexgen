@@ -54,8 +54,10 @@ Str matcher_match(Matcher *matcher, Str *text, u32 *matched_table_id) {
     }
   }
 
-  text->ptr += lexeme.len;
-  text->len -= lexeme.len;
+  if (*matched_table_id != (u32) -1) {
+    text->ptr += lexeme.len;
+    text->len -= lexeme.len;
+  }
 
   return lexeme;
 }
