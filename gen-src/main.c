@@ -340,7 +340,7 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
         target_state += state_offset;
 
       sb_push_atoms(sb, atom->as.loop, current_state,
-                    target_state, false, true);
+                    current_state, false, true);
 
       sb_push(sb, "  { ");
       sb_push_u32(sb, current_state);
@@ -391,18 +391,21 @@ Str defs_gen_code(Defs *defs) {
     sb_push_str_uppercase(&sb, defs->items[i].name);
     sb_push_char(&sb, ' ');
     sb_push_u32(&sb, i);
-    sb_push(&sb, "\nTransitionRow tt_");
+    sb_push(&sb, "\nTransitionCol tt_col_");
     sb_push_str(&sb, defs->items[i].name);
     sb_push(&sb, "[] = {\n");
     sb_push_atoms(&sb, defs->items[i].atoms, 1, 0, true, false);
     sb_push(&sb, "};\n\n");
   }
 
-  sb_push(&sb, "TransiionRow[][] tts = {\n");
+  sb_push(&sb, "TransitionRow tt[] = {\n");
   for (u32 i = 0; i < defs->len; ++i) {
-    sb_push(&sb, "  tt_");
+    sb_push(&sb, "  { tt_col_");
     sb_push_str(&sb, defs->items[i].name);
-    sb_push(&sb, ",\n");
+    sb_push(&sb, ", sizeof(");
+    sb_push(&sb, "tt_col_");
+    sb_push_str(&sb, defs->items[i].name);
+    sb_push(&sb, ") / sizeof(TransitionCol) },\n");
   }
   sb_push(&sb, "};\n");
 

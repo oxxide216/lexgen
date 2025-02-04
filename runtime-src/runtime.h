@@ -6,18 +6,14 @@ typedef struct {
   i8  min_char;
   i8  max_char;
   u32 next_state;
+} TransitionCol;
+
+typedef struct {
+  TransitionCol *cols;
+  u32            cols_count;
 } TransitionRow;
 
-typedef struct {
-  TransitionRow *rows;
-  u32            rows_count;
-} TransitionTable;
+typedef Da(TransitionRow) TransitionTable;
 
-typedef Da(TransitionTable) TransitionTables;
-
-typedef struct {
-  TransitionTables tables;
-} Matcher;
-
-void matcher_push_table(Matcher *matcher, TransitionRow *rows, u32 rows_count);
-Str  matcher_match(Matcher *matcher, Str *text, u32 *lexeme_len);
+void tt_push_row(TransitionTable *tt, TransitionCol *cols, u32 cols_count);
+Str  tt_match(TransitionTable *tt, Str *text, u32 *lexeme_len);
