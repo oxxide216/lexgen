@@ -63,7 +63,7 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
   while (*i < source_text.len &&
          (source_text.ptr[*i] != '\n'&&
           (source_text.ptr[*i] != ')' ||
-          is_in_block))) {
+           is_in_block || is_escaped))) {
     i8 _char = source_text.ptr[*i];
 
     if (is_escaped) {
@@ -190,8 +190,6 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
     is_escaped = false;
     ++*i;
   }
-
-  ++*i;
 
   return result;
 }

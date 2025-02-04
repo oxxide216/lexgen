@@ -18,7 +18,7 @@ int main(void) {
     if (token_id == 0)
       continue;
 
-    if (text.len == TT_SKIP)
+    if (text.len == 0)
       printf("%u :: "STR_FMT" :: EOF\n",
              token_id, STR_ARG(lexeme));
     else
