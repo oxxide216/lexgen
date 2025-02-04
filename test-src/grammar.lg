@@ -1,5 +1,5 @@
-skip=$+
-ident=a-z+
+skip=( |\n|\t|\r)+
+ident=(a-z|A-Z|_)(a-z|A-Z|0-9|_)*
 number=0-9+
 op_add=\+
 op_sub=\-

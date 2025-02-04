@@ -8,7 +8,6 @@ typedef enum {
   AtomKindChar = 0,
   AtomKindRange,
   AtomKindLoop,
-  AtomKindWhitespace,
   AtomKindOr,
   AtomKindBlock,
 } AtomKind;
@@ -63,7 +62,7 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
 
   while (*i < source_text.len &&
          (source_text.ptr[*i] != '\n'&&
-         (source_text.ptr[*i] != ')' ||
+          (source_text.ptr[*i] != ')' ||
           is_in_block))) {
     i8 _char = source_text.ptr[*i];
 
@@ -152,6 +151,7 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
 
       ++*i;
       Atom *rhs = parse(source_text, i, is_in_block);
+      --*i;
       Atom *new_atom = aalloc(sizeof(Atom));
       *new_atom = (Atom) { AtomKindOr, { .or = { result, rhs } }, NULL };
       result = new_atom;
@@ -251,14 +251,14 @@ void atom_max_state(Atom *atom, u32 *max_state) {
   } break;
 
   case AtomKindOr: {
-    u32 lhs_max_state, rhs_max_state;
+    u32 lhs_max_state = 0, rhs_max_state = 0;
     atom_max_state(atom->as.or.lhs, &lhs_max_state);
     atom_max_state(atom->as.or.rhs, &rhs_max_state);
 
     if (rhs_max_state > lhs_max_state)
-      *max_state += rhs_max_state;
+      *max_state += rhs_max_state - 1;
     else
-      *max_state += lhs_max_state;
+      *max_state += lhs_max_state - 1;
   } break;
 
   case AtomKindBlock: {
@@ -271,24 +271,23 @@ void atom_max_state(Atom *atom, u32 *max_state) {
 }
 
 u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
-                  bool is_in_loop, bool is_in_block, bool is_last) {
+                  u32 expected_target_state, bool is_on_top_level,
+                  bool is_in_loop) {
   if (current_state == 0) {
     ERROR("Unreachable\n");
     exit(1);
   }
 
   u32 target_state = current_state;
-  bool new_is_last = false;
+  if (is_in_loop)
+    target_state = expected_target_state;
 
   Atom *atom = atoms;
   while (atom) {
-    if (!atom->next && (is_last || !is_in_block))
-      new_is_last = true;
-
     if (!is_in_loop) {
       ++target_state;
-      if (new_is_last)
-        target_state = 0;
+      if (!atom->next)
+        target_state = expected_target_state;
     }
 
     switch (atom->kind) {
@@ -330,10 +329,18 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
     } break;
 
     case AtomKindLoop: {
-      u32 next_state = sb_push_atoms(sb, atom->as.loop, current_state,
-                                     true, is_in_block, new_is_last);
-      current_state = next_state;
-      target_state = next_state + 1;
+      if (is_in_loop) {
+        ERROR("Recursive loop detected\n");
+        exit(1);
+      }
+
+      u32 state_offset = 0;
+      atom_max_state(atom->as.loop, &state_offset);
+      if (expected_target_state - target_state >= state_offset)
+        target_state += state_offset;
+
+      sb_push_atoms(sb, atom->as.loop, current_state,
+                    target_state, false, true);
 
       sb_push(sb, "  { ");
       sb_push_u32(sb, current_state);
@@ -351,17 +358,18 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
       if (rhs_state_offset > lhs_state_offset)
         state_offset = rhs_state_offset;
 
-      if (!new_is_last)
+      if (!is_in_loop && expected_target_state - target_state >= state_offset)
         target_state += state_offset;
 
-      INFO("%u:%u\n", lhs_state_offset, rhs_state_offset);
-      sb_push_atoms(sb, atom->as.or.lhs, current_state, false, is_in_block, new_is_last);
-      sb_push_atoms(sb, atom->as.or.rhs, current_state, false, is_in_block, new_is_last);
+      sb_push_atoms(sb, atom->as.or.lhs, current_state,
+                    target_state, is_on_top_level, false);
+      sb_push_atoms(sb, atom->as.or.rhs, current_state,
+                    target_state, is_on_top_level, false);
     } break;
 
     case AtomKindBlock: {
       target_state = sb_push_atoms(sb, atom->as.block, current_state,
-                                   false, true, new_is_last);
+                                   target_state, false, false);
     } break;
     }
 
@@ -385,8 +393,8 @@ Str defs_gen_code(Defs *defs) {
     sb_push_u32(&sb, i);
     sb_push(&sb, "\nTransitionRow tt_");
     sb_push_str(&sb, defs->items[i].name);
-    sb_push(&sb, "[] = { \n");
-    sb_push_atoms(&sb, defs->items[i].atoms, 1, false, false, false);
+    sb_push(&sb, "[] = {\n");
+    sb_push_atoms(&sb, defs->items[i].atoms, 1, 0, true, false);
     sb_push(&sb, "};\n\n");
   }
 
