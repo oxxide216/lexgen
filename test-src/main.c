@@ -3,7 +3,7 @@
 #include "str.h"
 
 int main(void) {
-  Str text = STR_LIT("228 + 1337 * bruh / capybara : xy - yx +-*/ Alderak");
+  Str text = STR_LIT("228 + 1337 * bruh / capybara : xy - yx +-*/ Alde_rak");
   TransitionTable table = {0};
 
   for (u32 i = 0; i < ARRAY_LEN(tt); ++i)
@@ -12,19 +12,17 @@ int main(void) {
   Str lexeme;
   u32 token_id;
   while (true) {
-    lexeme = tt_match(&table, &text, &token_id);
+    lexeme = tt_matches(&table, &text, &token_id);
     if (token_id == (u32) -1)
       break;
-    if (token_id == 0)
+
+    if (token_id == TT_SKIP)
       continue;
 
-    if (text.len == 0)
-      printf("%u :: "STR_FMT" :: EOF\n",
-             token_id, STR_ARG(lexeme));
-    else
-      printf("%u :: "STR_FMT" :: "STR_FMT"\n",
-             token_id, STR_ARG(lexeme),
-             STR_ARG(text));
+    printf("%u :: "STR_FMT, token_id, STR_ARG(lexeme));
+    if (text.len > 0)
+      printf(" :: "STR_FMT, STR_ARG(text));
+    putc('\n', stdout);
   }
 
   return 0;

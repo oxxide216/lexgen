@@ -405,7 +405,7 @@ Str defs_gen_code(Defs *defs) {
     sb_push_str(&sb, defs->items[i].name);
     sb_push(&sb, ") / sizeof(TransitionCol) },\n");
   }
-  sb_push(&sb, "};\n");
+  sb_push(&sb, "};\n\n");
 
   sb_push(&sb, "#endif // LEXGEN_TRANSITION_TABLE\n");
 

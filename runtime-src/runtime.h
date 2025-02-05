@@ -16,4 +16,4 @@ typedef struct {
 typedef Da(TransitionRow) TransitionTable;
 
 void tt_push_row(TransitionTable *tt, TransitionCol *cols, u32 cols_count);
-Str  tt_match(TransitionTable *tt, Str *text, u32 *lexeme_len);
+Str  tt_matches(TransitionTable *tt, Str *text, u32 *lexeme_len);
