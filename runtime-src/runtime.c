@@ -18,8 +18,7 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
       if (col->prev_state != state)
         continue;
 
-      if (col->min_char != -1 && (i == text.len ||
-                                  col->min_char > text.ptr[i] ||
+      if (col->min_char != -1 && (col->min_char > text.ptr[i] ||
                                   col->max_char < text.ptr[i]))
         continue;
 
@@ -28,11 +27,11 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
       if (state == 0) {
         *lexeme_len = i;
         if (*lexeme_len == 0)
-          ++*lexeme_len;
+          *lexeme_len = 1;
         return true;
       }
 
-      col_index += col->next_state - col->prev_state;
+      col_index = j;
       break;
     }
 
@@ -47,7 +46,7 @@ Str tt_matches(TransitionTable *tt, Str *text, u32 *token_id) {
   Str lexeme = { text->ptr, 0 };
 
   if (token_id)
-  *token_id = (u32) -1;
+    *token_id = (u32) -1;
 
   for (u32 i = 0; i < tt->len; ++i) {
     u32 new_lexeme_len = 0;

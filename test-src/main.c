@@ -1,9 +1,12 @@
 #include "../runtime-src/runtime.h"
 #include "grammar.h"
 #include "str.h"
+#include "log.h"
 
 int main(void) {
-  Str text = STR_LIT("228 + 1337 * bruh / capybara : xy - yx +-*/ Alde_rak");
+  Str text = STR_LIT("let main() =\n"
+                     "  if true: 2 + 2\n"
+                     "  else: 0\n");
   TransitionTable table = {0};
 
   for (u32 i = 0; i < ARRAY_LEN(tt); ++i)
@@ -11,18 +14,28 @@ int main(void) {
 
   Str lexeme;
   u32 token_id;
+  u32 row = 0, col = 0;
+
   while (true) {
     lexeme = tt_matches(&table, &text, &token_id);
-    if (token_id == (u32) -1)
-      break;
+    if (token_id == (u32) -1) {
+      if (text.len == 0)
+        break;
+
+      ERROR("Unexpected %c at %u:%u\n", text.ptr[0], row + 1, col + 1);
+      exit(1);
+    }
+
+    ++col;
+    if (token_id == TT_NEWLINE) {
+      ++row;
+      col = 0;
+    }
 
     if (token_id == TT_SKIP)
       continue;
 
-    printf("%u :: "STR_FMT, token_id, STR_ARG(lexeme));
-    if (text.len > 0)
-      printf(" :: "STR_FMT, STR_ARG(text));
-    putc('\n', stdout);
+    printf("%u :: "STR_FMT"\n", token_id, STR_ARG(lexeme));
   }
 
   return 0;

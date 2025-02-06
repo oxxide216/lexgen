@@ -15,6 +15,11 @@ typedef enum {
 typedef struct Atom Atom;
 
 typedef struct {
+  i8   _char;
+  bool is_escaped;
+} Char;
+
+typedef struct {
   i8 min, max;
 } Range;
 
@@ -24,7 +29,7 @@ typedef struct {
 } Or;
 
 typedef union {
-  char   _char;
+  Char   _char;
   Range  range;
   Atom  *loop;
   Or     or;
@@ -44,16 +49,23 @@ typedef struct {
 
 typedef Da(Def) Defs;
 
-typedef struct {
-  char _char;
-  char escaped_char;
-} EscapedCharPair;
+i8 escape_chars[] = { 'n', 'r', 't' };
 
-EscapedCharPair ecps[] = {
-  { 'n', '\n' },
-  { 'r', '\r' },
-  { 't', '\t' },
-};
+void atoms_push_char(Atom **begin, Atom **end,
+                     i8 _char, bool is_escaped) {
+  Atom new_atom = {
+    AtomKindChar,
+    { { _char, is_escaped } },
+    NULL,
+  };
+
+  if (*end && (*end)->kind == AtomKindRange && (*end)->as.range.max == 0) {
+    (*end)->as.range.max = _char;
+  } else {
+    LL_PREPEND((*begin), (*end), Atom);
+    **end = new_atom;
+  }
+}
 
 Atom *parse(Str source_text, u32 *i, bool is_in_block) {
   Atom *result = NULL;
@@ -67,24 +79,17 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
     i8 _char = source_text.ptr[*i];
 
     if (is_escaped) {
-      for (u32 j = 0; j < ARRAY_LEN(ecps); ++j) {
-        if (_char == ecps[j]._char) {
-          _char = ecps[j].escaped_char;
+      bool is_char_escaped = false;
+
+      for (u32 j = 0; j < ARRAY_LEN(escape_chars); ++j) {
+        if (_char == escape_chars[j]) {
+          is_char_escaped = true;
           break;
         }
       }
 
-      Atom new_atom = { AtomKindChar, { _char = _char }, NULL };
-
-      if (result_end &&
-          result_end->kind == AtomKindRange &&
-          result_end->as.range.max == 0) {
-        result_end->as.range.max = _char;
-      } else {
-        LL_PREPEND(result, result_end, Atom);
-        *result_end = new_atom;
-      }
-
+      atoms_push_char(&result, &result_end,
+                      _char, is_char_escaped);
       is_escaped = false;
       ++*i;
       continue;
@@ -95,22 +100,7 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
     }
 
     switch (_char) {
-    case '+': {
-      if (!result_end) {
-        ERROR("No operand was found\n");
-        exit(1);
-      }
-      if (result_end->kind == AtomKindLoop) {
-        ERROR("Loop recursion detected\n");
-        exit(1);
-      }
-
-      Atom *new_atom = aalloc(sizeof(Atom));
-      *new_atom = (Atom) { result_end->kind, result_end->as, NULL };
-      LL_PREPEND(result, result_end, Atom);
-      *result_end = (Atom) { AtomKindLoop, { .loop = new_atom }, NULL };
-    } break;
-
+    case '+':
     case '*': {
       if (!result_end) {
         ERROR("No operand was found\n");
@@ -123,6 +113,8 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
 
       Atom *new_atom = aalloc(sizeof(Atom));
       *new_atom = *result_end;
+      if (_char == '+')
+        LL_PREPEND(result, result_end, Atom);
       *result_end = (Atom) { AtomKindLoop, { .loop = new_atom }, NULL };
     } break;
 
@@ -138,7 +130,7 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
 
       *result_end = (Atom) {
         AtomKindRange,
-        { .range = { result_end->as._char, 0 } },
+        { { result_end->as._char._char, 0 } },
         NULL,
       };
     } break;
@@ -174,16 +166,8 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
     } break;
 
     default: {
-      Atom new_atom = { AtomKindChar, { _char = _char }, NULL };
-
-      if (result_end &&
-          result_end->kind == AtomKindRange &&
-          result_end->as.range.max == 0) {
-        result_end->as.range.max = _char;
-      } else {
-        LL_PREPEND(result, result_end, Atom);
-        *result_end = new_atom;
-      }
+      atoms_push_char(&result, &result_end,
+                      _char, false);
     } break;
     }
 
@@ -268,6 +252,7 @@ void atom_max_state(Atom *atom, u32 *max_state) {
     atom_max_state(atom->next, max_state);
 }
 
+
 u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
                   u32 expected_target_state, bool is_on_top_level,
                   bool is_in_loop) {
@@ -290,25 +275,16 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
 
     switch (atom->kind) {
     case AtomKindChar: {
-      bool is_escaped = false;
-      for (u32 i = 0; i < ARRAY_LEN(ecps); ++i) {
-        if (atom->as._char == ecps[i].escaped_char) {
-          atom->as._char = ecps[i]._char;
-          is_escaped = true;
-          break;
-        }
-      }
-
       sb_push(sb, "  { ");
       sb_push_u32(sb, current_state);
       sb_push(sb, ", '");
-      if (is_escaped)
+      if (atom->as._char.is_escaped)
         sb_push_char(sb, '\\');
-      sb_push_char(sb, atom->as._char);
+      sb_push_char(sb, atom->as._char._char);
       sb_push(sb, "', '");
-      if (is_escaped)
+      if (atom->as._char.is_escaped)
         sb_push_char(sb, '\\');
-      sb_push_char(sb, atom->as._char);
+      sb_push_char(sb, atom->as._char._char);
       sb_push(sb, "', ");
       sb_push_u32(sb, target_state);
       sb_push(sb, " },\n");
