@@ -372,6 +372,10 @@ Str defs_gen_code(Defs *defs) {
     sb_push(&sb, "};\n\n");
   }
 
+  sb_push(&sb, "#define TTS_COUNT ");
+  sb_push_u32(&sb, defs->len);
+  sb_push_char(&sb, '\n');
+
   sb_push(&sb, "TransitionRow tt[] = {\n");
   for (u32 i = 0; i < defs->len; ++i) {
     sb_push(&sb, "  { tt_col_");
