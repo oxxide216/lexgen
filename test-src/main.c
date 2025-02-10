@@ -18,6 +18,7 @@ int main(void) {
 
   while (true) {
     lexeme = tt_matches(&table, &text, &token_id);
+
     if (token_id == (u32) -1) {
       if (text.len == 0)
         break;

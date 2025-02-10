@@ -9,7 +9,7 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
   u32 state = 1;
   u32 col_index = 0;
 
-  for (u32 i = 0; i < (u32) text.len; ++i) {
+  for (u32 i = 0; i <= (u32) text.len; ++i) {
     bool found = false;
 
     for (u32 j = col_index; j < row->cols_count; ++j) {
@@ -18,7 +18,8 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
       if (col->prev_state != state)
         continue;
 
-      if (col->min_char != -1 && (text.ptr[i] < col->min_char ||
+      if (col->min_char != -1 && (i == (u32) text.len ||
+                                  text.ptr[i] < col->min_char ||
                                   text.ptr[i] > col->max_char))
         continue;
 
