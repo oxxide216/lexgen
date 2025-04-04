@@ -54,7 +54,7 @@ Str tt_matches(TransitionTable *tt, Str *text, u32 *token_id) {
     bool row_match = row_matches(tt->items + i, *text,
                                  &new_lexeme_len);
 
-    if (row_match && new_lexeme_len > lexeme.len) {
+    if (row_match && new_lexeme_len > (u32) lexeme.len) {
       lexeme.len = new_lexeme_len;
       longest_token_id = i;
     }
