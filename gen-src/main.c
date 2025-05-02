@@ -278,11 +278,13 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
       sb_push(sb, "  { ");
       sb_push_u32(sb, current_state);
       sb_push(sb, ", '");
-      if (atom->as._char.is_escaped)
+      if (atom->as._char.is_escaped ||
+          atom->as._char._char == '\'')
         sb_push_char(sb, '\\');
       sb_push_char(sb, atom->as._char._char);
       sb_push(sb, "', '");
-      if (atom->as._char.is_escaped)
+      if (atom->as._char.is_escaped ||
+          atom->as._char._char == '\'')
         sb_push_char(sb, '\\');
       sb_push_char(sb, atom->as._char._char);
       sb_push(sb, "', ");
@@ -294,8 +296,12 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
       sb_push(sb, "  { ");
       sb_push_u32(sb, current_state);
       sb_push(sb, ", '");
+      if (atom->as.range.min == '\'')
+        sb_push_char(sb, '\\');
       sb_push_char(sb, atom->as.range.min);
       sb_push(sb, "', '");
+      if (atom->as.range.max == '\'')
+        sb_push_char(sb, '\\');
       sb_push_char(sb, atom->as.range.max);
       sb_push(sb, "', ");
       sb_push_u32(sb, target_state);
