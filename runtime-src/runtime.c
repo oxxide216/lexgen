@@ -7,12 +7,11 @@ void tt_push_row(TransitionTable *tt, TransitionCol *cols, u32 cols_count) {
 
 static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
   u32 state = 1;
-  u32 col_index = 0;
 
   for (u32 i = 0; i <= (u32) text.len; ++i) {
     bool found = false;
 
-    for (u32 j = col_index; j < row->cols_count; ++j) {
+    for (u32 j = 0; j < row->cols_count; ++j) {
       TransitionCol *col = row->cols + j;
 
       if (col->prev_state != state)
@@ -33,7 +32,6 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
         return true;
       }
 
-      col_index = j;
       break;
     }
 
