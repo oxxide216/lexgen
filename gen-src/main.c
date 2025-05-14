@@ -373,7 +373,7 @@ void sb_push_str_uppercase(StringBuilder *sb, Str str) {
   }
 }
 
-Str defs_gen_code(Defs *defs) {
+Str defs_gen_table(Defs *defs) {
   StringBuilder sb = {0};
 
   sb_push(&sb, "#ifndef LEXGEN_TRANSITION_TABLE\n");
@@ -384,28 +384,46 @@ Str defs_gen_code(Defs *defs) {
     sb_push_str_uppercase(&sb, defs->items[i].name);
     sb_push_char(&sb, ' ');
     sb_push_u32(&sb, i);
-    sb_push(&sb, "\nTransitionCol tt_col_");
+    sb_push(&sb, "\n");
+  }
+
+  sb_push(&sb, "\n#define TTS_COUNT ");
+  sb_push_u32(&sb, defs->len);
+  sb_push(&sb, "\n\n");
+
+  sb_push(&sb, "TransitionTable *get_transition_table(void);\n\n");
+
+  sb_push(&sb, "#ifdef LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
+
+  for (u32 i = 0; i < defs->len; ++i) {
+    sb_push(&sb, "TransitionCol table_col_");
     sb_push_str(&sb, defs->items[i].name);
     sb_push(&sb, "[] = {\n");
     sb_push_atoms(&sb, defs->items[i].atoms, 1, 0, true, false);
     sb_push(&sb, "};\n\n");
   }
 
-  sb_push(&sb, "#define TTS_COUNT ");
-  sb_push_u32(&sb, defs->len);
-  sb_push_char(&sb, '\n');
-
-  sb_push(&sb, "TransitionRow tt[] = {\n");
+  sb_push(&sb, "TransitionRow table_rows[] = {\n");
   for (u32 i = 0; i < defs->len; ++i) {
-    sb_push(&sb, "  { tt_col_");
+    sb_push(&sb, "  { table_col_");
     sb_push_str(&sb, defs->items[i].name);
     sb_push(&sb, ", sizeof(");
-    sb_push(&sb, "tt_col_");
+    sb_push(&sb, "table_col_");
     sb_push_str(&sb, defs->items[i].name);
     sb_push(&sb, ") / sizeof(TransitionCol) },\n");
   }
   sb_push(&sb, "};\n\n");
 
+  sb_push(&sb, "TransitionTable table = {\n");
+  sb_push(&sb, "  table_rows,\n");
+  sb_push(&sb, "  sizeof(table_rows) / sizeof(TransitionRow),\n");
+  sb_push(&sb, "};\n\n");
+
+  sb_push(&sb, "TransitionTable *get_transition_table(void) {\n");
+  sb_push(&sb, "  return &table;\n");
+  sb_push(&sb, "};\n\n");
+
+  sb_push(&sb, "#endif // LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
   sb_push(&sb, "#endif // LEXGEN_TRANSITION_TABLE\n");
 
   return sb_to_str(sb);
@@ -424,7 +442,7 @@ int main(i32 argv, char **argc) {
 
   Str source_text = read_file(argc[2]);
   Defs defs = create_defs(source_text);
-  write_file(argc[1], defs_gen_code(&defs));
+  write_file(argc[1], defs_gen_table(&defs));
 
   return 0;
 }
