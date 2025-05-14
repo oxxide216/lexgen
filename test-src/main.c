@@ -1,6 +1,6 @@
 #include "../runtime-src/runtime.h"
 #include "grammar.h"
-#include "str.h"
+#include "shl_str.h"
 #include "log.h"
 
 int main(void) {

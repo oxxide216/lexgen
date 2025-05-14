@@ -1,7 +1,11 @@
 #include <ctype.h>
 
+#include "shl_defs.h"
+#define SHL_ARENA_IMPLEMENTATION
+#include "shl_arena.h"
+#define SHL_STR_IMPLEMENTATION
+#include "shl_str.h"
 #include "io.h"
-#include "defs.h"
 #include "log.h"
 
 typedef enum {
@@ -358,6 +362,15 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
   }
 
   return target_state;
+}
+
+void sb_push_str_uppercase(StringBuilder *sb, Str str) {
+  for (u32 i = 0; i < str.len; ++i) {
+    char ch = str.ptr[i];
+    if (str.ptr[i] >= 97 && str.ptr[i] <=122)
+      ch -= 32;
+    sb_push_char(sb, ch);
+  }
 }
 
 Str defs_gen_code(Defs *defs) {
