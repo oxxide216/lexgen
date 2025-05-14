@@ -5,8 +5,8 @@
 #include "shl_arena.h"
 #define SHL_STR_IMPLEMENTATION
 #include "shl_str.h"
+#include "shl_log.h"
 #include "io.h"
-#include "log.h"
 
 typedef enum {
   AtomKindChar = 0,
