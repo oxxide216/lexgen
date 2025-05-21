@@ -14,6 +14,7 @@ typedef enum {
   AtomKindLoop,
   AtomKindOr,
   AtomKindBlock,
+  AtomKindOptional,
 } AtomKind;
 
 typedef struct Atom Atom;
@@ -38,6 +39,7 @@ typedef union {
   Atom  *loop;
   Or     or;
   Atom  *block;
+  Atom  *optional;
 } AtomAs;
 
 struct Atom {
@@ -169,6 +171,23 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
       exit(1);
     } break;
 
+    case '?': {
+      if (!result_end || *i + 1 >= source_text.len) {
+        ERROR("No operand was found\n");
+        exit(1);
+      }
+
+      Atom *new_atom = aalloc(sizeof(Atom));
+      *new_atom = *result_end;
+      *result_end = (Atom) {
+        AtomKindOptional,
+        { .optional = new_atom },
+        NULL,
+      };
+
+
+    } break;
+
     default: {
       atoms_push_char(&result, &result_end,
                       _char, false);
@@ -232,7 +251,8 @@ void atom_max_state(Atom *atom, u32 *max_state) {
   switch (atom->kind) {
   case AtomKindChar:
   case AtomKindRange:
-  case AtomKindLoop: {
+  case AtomKindLoop:
+  case AtomKindOptional: {
     ++*max_state;
   } break;
 
@@ -250,6 +270,7 @@ void atom_max_state(Atom *atom, u32 *max_state) {
   case AtomKindBlock: {
     atom_max_state(atom->as.block, max_state);
   } break;
+
   }
 
   if (atom->next)
@@ -354,6 +375,18 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
     case AtomKindBlock: {
       target_state = sb_push_atoms(sb, atom->as.block, current_state,
                                    target_state, false, false);
+    } break;
+
+    case AtomKindOptional: {
+      sb_push_atoms(sb, atom->as.optional, current_state,
+                    target_state, false, false);
+
+      sb_push(sb, "  { ");
+      sb_push_u32(sb, current_state);
+      sb_push(sb, ", -1, -1, ");
+      sb_push_u32(sb, target_state);
+      sb_push(sb, " },\n");
+
     } break;
     }
 
