@@ -18,4 +18,4 @@ typedef struct {
   u32            len;
 } TransitionTable;
 
-Str  table_matches(TransitionTable *table, Str *text, u32 *lexeme_len);
+Str  table_matches(TransitionTable *table, Str *text, u64 *token_id);
