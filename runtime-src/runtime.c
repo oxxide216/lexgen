@@ -38,9 +38,9 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
   return false;
 }
 
-Str table_matches(TransitionTable *table, Str *text, u32 *token_id) {
+Str table_matches(TransitionTable *table, Str *text, u64 *token_id) {
   Str lexeme = { text->ptr, 0 };
-  u32 longest_token_id = (u32) -1;
+  u64 longest_token_id = (u64) -1;
 
   for (u32 i = 0; i < table->len; ++i) {
     u32 new_lexeme_len = 0;
@@ -53,7 +53,7 @@ Str table_matches(TransitionTable *table, Str *text, u32 *token_id) {
     }
   }
 
-  if (longest_token_id != (u32) -1) {
+  if (longest_token_id != (u64) -1) {
     text->ptr += lexeme.len;
     text->len -= lexeme.len;
   }
