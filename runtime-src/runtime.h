@@ -1,5 +1,5 @@
-#include "shl-defs.h"
-#include "shl-str.h"
+#include "shl/shl-defs.h"
+#include "shl/shl-str.h"
 
 typedef struct {
   u32 prev_state;
