@@ -1,12 +1,12 @@
 #include <ctype.h>
 
-#include "shl_defs.h"
-#define SHL_ARENA_IMPLEMENTATION
-#include "shl_arena.h"
-#define SHL_STR_IMPLEMENTATION
-#include "shl_str.h"
-#include "shl_log.h"
 #include "io.h"
+#include "shl/shl-defs.h"
+#define SHL_ARENA_IMPLEMENTATION
+#include "shl/shl-arena.h"
+#define SHL_STR_IMPLEMENTATION
+#include "shl/shl-str.h"
+#include "shl/shl-log.h"
 
 typedef enum {
   AtomKindChar = 0,
