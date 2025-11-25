@@ -12,12 +12,12 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
       if (col->prev_state != state)
         continue;
 
-      if (col->min_char != -1 && (i == (u32) text.len ||
-                                  text.ptr[i] < col->min_char ||
-                                  text.ptr[i] > col->max_char))
+      if (col->min_char != (i8)-1 && (i == (u32) text.len ||
+                                      text.ptr[i] < col->min_char ||
+                                      text.ptr[i] > col->max_char))
         continue;
 
-      if (col->min_char == -1)
+      if (col->min_char == (i8) -1)
         --i;
 
       found = true;
