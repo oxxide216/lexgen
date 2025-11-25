@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/usr/bin/bash
 
 CFLAGS="-Wall -Wextra"
 SRC="$(find test-src -name "*.c")"
