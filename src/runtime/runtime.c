@@ -1,4 +1,4 @@
-#include "runtime.h"
+#include "lexgen/runtime.h"
 
 static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
   u32 state = 1;

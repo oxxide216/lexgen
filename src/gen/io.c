@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "io.h"
+#include "lexgen/io.h"
 
 Str read_file(char *path) {
   Str content;

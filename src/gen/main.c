@@ -1,6 +1,6 @@
 #include <ctype.h>
 
-#include "io.h"
+#include "lexgen/io.h"
 #include "shl/shl-defs.h"
 #define SHL_ARENA_IMPLEMENTATION
 #include "shl/shl-arena.h"

@@ -1,4 +1,4 @@
-#include "../runtime-src/runtime.h"
+#include "lexgen/runtime.h"
 #define LEXGEN_TRANSITION_TABLE_IMPLEMENTATION
 #include "grammar.h"
 #include "shl_str.h"
