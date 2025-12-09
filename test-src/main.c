@@ -11,13 +11,13 @@ int main(void) {
   TransitionTable *table = get_transition_table();
 
   Str lexeme;
-  u32 token_id;
+  u64 token_id;
   u32 row = 0, col = 0;
 
   while (true) {
     lexeme = table_matches(table, &text, &token_id);
 
-    if (token_id == (u32) -1) {
+    if (token_id == (u64) -1) {
       if (text.len == 0)
         break;
 
@@ -29,12 +29,13 @@ int main(void) {
     if (token_id == TT_NEWLINE) {
       ++row;
       col = 0;
+      continue;
     }
 
     if (token_id == TT_SKIP)
       continue;
 
-    printf("%u :: "STR_FMT"\n", token_id, STR_ARG(lexeme));
+    printf("%lu :: "STR_FMT"\n", token_id, STR_ARG(lexeme));
   }
 
   return 0;

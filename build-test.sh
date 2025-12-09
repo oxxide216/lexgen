@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-CFLAGS="-Wall -Wextra"
+CFLAGS="-Wall -Wextra -Ilibs"
 SRC="$(find test-src -name "*.c")"
 RUNTIME_SRC="$(find runtime-src -name "*.c")"
 
