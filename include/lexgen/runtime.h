@@ -4,8 +4,8 @@
 
 typedef struct {
   u32   prev_state;
-  wchar_t min_char;
-  wchar_t max_char;
+  wchar min_char;
+  wchar max_char;
   u32   next_state;
 } TransitionCol;
 
@@ -19,4 +19,5 @@ typedef struct {
   u32            len;
 } TransitionTable;
 
-WStr table_matches(TransitionTable *table, WStr *text, u64 *token_id);
+wchar get_next_wchar(Str text, u32 index, u32 *len);
+Str   table_matches(TransitionTable *table, Str *text, u64 *token_id);

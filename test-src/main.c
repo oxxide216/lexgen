@@ -1,3 +1,4 @@
+#include <wchar.h>
 #include <locale.h>
 
 #include "lexgen/runtime.h"
@@ -10,13 +11,10 @@
 int main(void) {
   setlocale(LC_ALL, "");
 
-  WStr text = WSTR_LIT(L"let main() =\n"
-                       L"  if true: 2 + 2\n"
-                       L"  else: 0\n"
-                       L"  капибара\n");
+  Str text = STR_LIT("  капибара\n");
   TransitionTable *table = get_transition_table();
 
-  WStr lexeme;
+  Str lexeme;
   u64 token_id;
   u32 row = 1, col = 1;
 
@@ -27,8 +25,7 @@ int main(void) {
       if (text.len == 0)
         break;
 
-      wchar_t _char[2] = { text.ptr[0], 0 };
-      PERROR("%u:%u: ", "Unexpected %s\n", row, col, (char *) _char);
+      PERROR("%u:%u: ", "Unexpected something\n", row, col);
       exit(1);
     }
 
@@ -42,7 +39,7 @@ int main(void) {
     if (token_id == TT_SKIP)
       continue;
 
-    printf("%lu :: "WSTR_FMT"\n", token_id, WSTR_ARG(lexeme));
+    printf("%lu :: "STR_FMT"\n", token_id, STR_ARG(lexeme));
   }
 
   return 0;

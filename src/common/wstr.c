@@ -9,15 +9,15 @@ static void wsb_reserve_space(WStringBuilder *wsb, u32 amount) {
       while (amount > wsb->cap - wsb->len)
         wsb->cap *= 2;
 
-      wsb->buffer = realloc(wsb->buffer, (wsb->cap + 1) * sizeof(wchar_t));
+      wsb->buffer = realloc(wsb->buffer, (wsb->cap + 1) * sizeof(wchar));
     } else {
       wsb->cap += amount;
-      wsb->buffer = malloc((wsb->cap + 1) * sizeof(wchar_t));
+      wsb->buffer = malloc((wsb->cap + 1) * sizeof(wchar));
     }
   }
 }
 
-u32 wstrlen(wchar_t *wstr) {
+u32 wstrlen(wchar *wstr) {
   u32 len = 0;
 
   while (wstr[len])
@@ -26,10 +26,10 @@ u32 wstrlen(wchar_t *wstr) {
   return len;
 }
 
-u32 wstrlenu(wchar_t *wstr, u32 len) {
+u32 wstrlenu(wchar *wstr, u32 len) {
   u32 _len = 0;
 
-  for (u32 i = 0; i < len * sizeof(wchar_t); ++i)
+  for (u32 i = 0; i < len * sizeof(wchar); ++i)
     if (((char *) wstr)[i])
       ++_len;
 
@@ -37,7 +37,7 @@ u32 wstrlenu(wchar_t *wstr, u32 len) {
 }
 
 void wtou(char *dest, WStr wstr) {
-  for (u32 i = 0, j = 0; i < wstr.len * sizeof(wchar_t); ++i)
+  for (u32 i = 0, j = 0; i < wstr.len * sizeof(wchar); ++i)
     if (((char *) wstr.ptr)[i])
       dest[j++] = ((char *) wstr.ptr)[i];
 }
@@ -49,18 +49,18 @@ WStr wsb_to_wstr(WStringBuilder wsb) {
   };
 }
 
-void wsb_push(WStringBuilder *wsb, wchar_t *wstr) {
+void wsb_push(WStringBuilder *wsb, wchar *wstr) {
   wsb_push_wstr(wsb, WSTR(wstr, wstrlen(wstr)));
 }
 
-void wsb_push_wchar(WStringBuilder *wsb, wchar_t wchar_t) {
+void wsb_push_wchar(WStringBuilder *wsb, wchar wchar) {
   wsb_reserve_space(wsb, 1);
-  wsb->buffer[wsb->len++] = wchar_t;
+  wsb->buffer[wsb->len++] = wchar;
 }
 
 void wsb_push_wstr(WStringBuilder *wsb, WStr wstr) {
   wsb_reserve_space(wsb, wstr.len);
-  memcpy(wsb->buffer + wsb->len, wstr.ptr, wstr.len * sizeof(wchar_t));
+  memcpy(wsb->buffer + wsb->len, wstr.ptr, wstr.len * sizeof(wchar));
   wsb->len += wstr.len;
 }
 

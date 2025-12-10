@@ -1,9 +1,67 @@
 #include "lexgen/runtime.h"
+#define SHL_STR_IMPLEMENTATION
+#include "shl/shl-str.h"
 
-static bool row_matches(TransitionRow *row, WStr text, u32 *lexeme_len) {
+wchar get_next_wchar(Str text, u32 index, u32 *len) {
+  if (text.len <= index)
+    return U'\0';
+
+  u8 byte = text.ptr[index];
+  wchar result = byte;
+
+  if ((result & 0x80) == 0) {
+    *len = 1;
+  } else if ((result & 0xE0) == 0xC0) {
+    *len = 2;
+    result &= 0x1F;
+  } else if ((result & 0xF0) == 0xE0) {
+    *len = 3;
+    result &= 0x0F;
+  } else if ((result & 0xF8) == 0xF0) {
+    *len = 4;
+    result &= 0x07;
+  } else {
+    *len = 1;
+    return U'\0';
+  }
+
+  if (text.len - index < *len)
+    return U'\0';
+
+  for (u32 i = 1; i < *len; ++i) {
+    byte = text.ptr[index + i];
+    if ((byte & 0xC0) != 0x80) {
+      *len = i;
+      return U'\0';
+    }
+
+    result <<= 6;
+    result |= byte & 0b00111111;
+  }
+
+  if (*len == 2 && result < 0x80)
+    return U'\0';
+  if (*len == 3 && result < 0x800)
+    return U'\0';
+  if (*len == 4 && result < 0x10000)
+    return U'\0';
+
+  if (result >= 0xD800 && result <= 0xDFFF)
+    return U'\0';
+
+  if (result > 0x10FFFF)
+    return U'\0';
+
+  return result;
+}
+
+static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
   u32 state = 1;
+  u32 index = 0;
+  u32 wchar_len;
+  wchar _wchar;
 
-  for (u32 i = 0; i <= text.len; ++i) {
+  while ((_wchar = get_next_wchar(text, index, &wchar_len)) != U'\0') {
     bool found = false;
 
     for (u32 j = 0; j < row->cols_count; ++j) {
@@ -12,18 +70,18 @@ static bool row_matches(TransitionRow *row, WStr text, u32 *lexeme_len) {
       if (col->prev_state != state)
         continue;
 
-      if (col->min_char != (wchar_t) -1 && (i == text.len ||
-                                          text.ptr[i] < col->min_char ||
-                                          text.ptr[i] > col->max_char))
+      if (col->min_char != (wchar) -1 &&
+          (_wchar < col->min_char ||
+           _wchar > col->max_char))
         continue;
 
-      if (col->min_char == (wchar_t) -1)
-        --i;
+      if (col->min_char != (wchar) -1)
+        index += wchar_len;
 
       found = true;
       state = col->next_state;
       if (state == 0) {
-        *lexeme_len = i + 1;
+        *lexeme_len = index;
         return true;
       }
 
@@ -37,8 +95,8 @@ static bool row_matches(TransitionRow *row, WStr text, u32 *lexeme_len) {
   return false;
 }
 
-WStr table_matches(TransitionTable *table, WStr *text, u64 *token_id) {
-  WStr lexeme = { text->ptr, 0 };
+Str table_matches(TransitionTable *table, Str *text, u64 *token_id) {
+  Str lexeme = { text->ptr, 0 };
   u64 longest_token_id = (u64) -1;
 
   for (u32 i = 0; i < table->len; ++i) {

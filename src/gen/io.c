@@ -13,8 +13,8 @@ WStr read_file(char *path) {
 
   WStringBuilder wsb = {0};
 
-  wchar_t _char;
-  while ((_char = fgetwc(file)) != (wchar_t) EOF)
+  wchar _char;
+  while ((_char = fgetwc(file)) != (wchar) EOF)
     wsb_push_wchar(&wsb, _char);
 
   fclose(file);
@@ -30,7 +30,7 @@ bool write_file(char *path, WStr content) {
     return false;
   }
 
-  for (u32 i = 0; i < content.len * sizeof(wchar_t); ++i)
+  for (u32 i = 0; i < content.len * sizeof(wchar); ++i)
     if (((char *) content.ptr)[i])
       fputc(((char *) content.ptr)[i], file);
 

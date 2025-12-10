@@ -22,11 +22,11 @@ typedef enum {
 typedef struct Atom Atom;
 
 typedef struct {
-  wchar_t _char;
+  wchar _char;
 } Char;
 
 typedef struct {
-  wchar_t min, max;
+  wchar min, max;
 } Range;
 
 typedef struct {
@@ -57,19 +57,19 @@ typedef struct {
 typedef Da(Def) Defs;
 
 typedef struct {
-  wchar_t src;
-  wchar_t dest;
+  wchar src;
+  wchar dest;
 } EscapeChar;
 
 static EscapeChar escape_chars[] = {
-  { L'n', L'\n' },
-  { L'r', L'\r' },
-  { L't', L'\t' },
+  { U'n', U'\n' },
+  { U'r', U'\r' },
+  { U't', U'\t' },
 };
 
 static Arena arena = {0};
 
-void atoms_push_char(Atom **begin, Atom **end, wchar_t _char) {
+void atoms_push_char(Atom **begin, Atom **end, wchar _char) {
   for (u32 i = 0; i < ARRAY_LEN(escape_chars); ++i) {
     if (escape_chars[i].src == _char) {
       _char = escape_chars[i].dest;
@@ -97,25 +97,25 @@ Atom *parse(WStr source_text, u32 *i, bool is_in_block) {
   bool is_escaped = false;
 
   while (*i < source_text.len &&
-         (source_text.ptr[*i] != L'\n'&&
-          (source_text.ptr[*i] != L')' ||
+         (source_text.ptr[*i] != U'\n'&&
+          (source_text.ptr[*i] != U')' ||
            is_in_block || is_escaped))) {
-    wchar_t _char = source_text.ptr[*i];
+    wchar _char = source_text.ptr[*i];
 
     if (is_escaped) {
       atoms_push_char(&result, &result_end, _char);
       is_escaped = false;
       ++*i;
       continue;
-    } else if (_char == L'\\') {
+    } else if (_char == U'\\') {
       is_escaped = true;
       ++*i;
       continue;
     }
 
     switch (_char) {
-    case L'+':
-    case L'*': {
+    case U'+':
+    case U'*': {
       if (!result_end) {
         ERROR("No operand was found\n");
         exit(1);
@@ -127,12 +127,12 @@ Atom *parse(WStr source_text, u32 *i, bool is_in_block) {
 
       Atom *new_atom = arena_alloc(&arena, sizeof(Atom));
       *new_atom = *result_end;
-      if (_char == L'+')
+      if (_char == U'+')
         LL_PREPEND(result, result_end, Atom);
       *result_end = (Atom) { AtomKindLoop, { .loop = new_atom }, NULL };
     } break;
 
-    case L'-': {
+    case U'-': {
       if (!result_end || *i + 1 >= source_text.len) {
         ERROR("No operand was found\n");
         exit(1);
@@ -149,7 +149,7 @@ Atom *parse(WStr source_text, u32 *i, bool is_in_block) {
       };
     } break;
 
-    case L'|': {
+    case U'|': {
       if (!result || *i + 1 >= source_text.len) {
         ERROR("No operand was found\n");
         exit(1);
@@ -164,14 +164,14 @@ Atom *parse(WStr source_text, u32 *i, bool is_in_block) {
       result_end = new_atom;
     } break;
 
-    case L'(': {
+    case U'(': {
       ++*i;
       Atom *body = parse(source_text, i, true);
       LL_PREPEND(result, result_end, Atom);
       *result_end = (Atom) { AtomKindBlock, { .block = body }, NULL };
     } break;
 
-    case L')': {
+    case U')': {
       if (is_in_block)
         return result;
 
@@ -179,7 +179,7 @@ Atom *parse(WStr source_text, u32 *i, bool is_in_block) {
       exit(1);
     } break;
 
-    case L'?': {
+    case U'?': {
       if (!result_end || *i + 1 >= source_text.len) {
         ERROR("No operand was found\n");
         exit(1);
@@ -215,13 +215,13 @@ Defs create_defs(WStr source_text) {
   u32 col = 1;
   u32 i = 0;
   while (i < source_text.len) {
-    if (source_text.ptr[i] == L'\n') {
+    if (source_text.ptr[i] == U'\n') {
       ++row;
       col = 1;
       ++i;
       continue;
-    } else if (source_text.ptr[i] == L'#') {
-      while (i < source_text.len && source_text.ptr[i] != L'\n')
+    } else if (source_text.ptr[i] == U'#') {
+      while (i < source_text.len && source_text.ptr[i] != U'\n')
         ++i;
       ++row;
       col = 1;
@@ -231,24 +231,24 @@ Defs create_defs(WStr source_text) {
     WStr name = WSTR(source_text.ptr + i, 0);
     while (i < source_text.len &&
            (iswalnum(source_text.ptr[i]) ||
-            source_text.ptr[i] == L'_')) {
+            source_text.ptr[i] == U'_')) {
       ++name.len;
       ++i;
     }
 
     if (name.len == 0) {
-      wchar_t _char[2] = { source_text.ptr[i], 0 };
-      PERROR("%u:%u: ", "expected identifier, but got `%s`\n", row, col, (char *) _char);
+      wchar _char[2] = { source_text.ptr[i], 0 };
+      PERROR("%u:%u: ", "Expected identifier, but got `%s`\n", row, col, (char *) _char);
       exit(1);
     }
 
     if (i == source_text.len) {
-      PERROR("%u:%u: ", "expected `=`, but got EOF\n", row, col);
+      PERROR("%u:%u: ", "Expected `=`, but got EOF\n", row, col);
       exit(1);
     }
 
-    if (source_text.ptr[i] != L'=') {
-      wchar_t _char[2] = { source_text.ptr[i], 0 };
+    if (source_text.ptr[i] != U'=') {
+      wchar _char[2] = { source_text.ptr[i], 0 };
       PERROR("%u:%u: ", "expected `=`, but got `%s`\n", row, col, (char *) _char);
       exit(1);
     }
@@ -317,27 +317,27 @@ u32 wsb_push_atoms(WStringBuilder *wsb, Atom *atoms, u32 current_state,
 
     switch (atom->kind) {
     case AtomKindChar: {
-      wsb_push(wsb, L"  { ");
+      wsb_push(wsb, U"  { ");
       wsb_push_u32(wsb, current_state);
-      wsb_push(wsb, L", ");
+      wsb_push(wsb, U", ");
       wsb_push_u32(wsb, atom->as._char._char);
-      wsb_push(wsb, L", ");
+      wsb_push(wsb, U", ");
       wsb_push_u32(wsb, atom->as._char._char);
-      wsb_push(wsb, L", ");
+      wsb_push(wsb, U", ");
       wsb_push_u32(wsb, target_state);
-      wsb_push(wsb, L" },\n");
+      wsb_push(wsb, U" },\n");
     } break;
 
     case AtomKindRange: {
-      wsb_push(wsb, L"  { ");
+      wsb_push(wsb, U"  { ");
       wsb_push_u32(wsb, current_state);
-      wsb_push(wsb, L", ");
+      wsb_push(wsb, U", ");
       wsb_push_u32(wsb, atom->as.range.min);
-      wsb_push(wsb, L", ");
+      wsb_push(wsb, U", ");
       wsb_push_u32(wsb, atom->as.range.max);
-      wsb_push(wsb, L", ");
+      wsb_push(wsb, U", ");
       wsb_push_u32(wsb, target_state);
-      wsb_push(wsb, L" },\n");
+      wsb_push(wsb, U" },\n");
     } break;
 
     case AtomKindLoop: {
@@ -354,11 +354,11 @@ u32 wsb_push_atoms(WStringBuilder *wsb, Atom *atoms, u32 current_state,
       wsb_push_atoms(wsb, atom->as.loop, current_state,
                     current_state, false, true);
 
-      wsb_push(wsb, L"  { ");
+      wsb_push(wsb, U"  { ");
       wsb_push_u32(wsb, current_state);
-      wsb_push(wsb, L", -1, -1, ");
+      wsb_push(wsb, U", -1, -1, ");
       wsb_push_u32(wsb, target_state);
-      wsb_push(wsb, L" },\n");
+      wsb_push(wsb, U" },\n");
     } break;
 
     case AtomKindOr: {
@@ -388,11 +388,11 @@ u32 wsb_push_atoms(WStringBuilder *wsb, Atom *atoms, u32 current_state,
       wsb_push_atoms(wsb, atom->as.optional, current_state,
                     target_state, false, false);
 
-      wsb_push(wsb, L"  { ");
+      wsb_push(wsb, U"  { ");
       wsb_push_u32(wsb, current_state);
-      wsb_push(wsb, L", -1, -1, ");
+      wsb_push(wsb, U", -1, -1, ");
       wsb_push_u32(wsb, target_state);
-      wsb_push(wsb, L" },\n");
+      wsb_push(wsb, U" },\n");
     } break;
     }
 
@@ -406,55 +406,55 @@ u32 wsb_push_atoms(WStringBuilder *wsb, Atom *atoms, u32 current_state,
 WStr defs_gen_table(Defs *defs) {
   WStringBuilder  wsb = {0};
 
-   wsb_push(&wsb, L"#ifndef LEXGEN_TRANSITION_TABLE\n");
-   wsb_push(&wsb, L"#define LEXGEN_TRANSITION_TABLE\n\n");
+   wsb_push(&wsb, U"#ifndef LEXGEN_TRANSITION_TABLE\n");
+   wsb_push(&wsb, U"#define LEXGEN_TRANSITION_TABLE\n\n");
 
   for (u32 i = 0; i < defs->len; ++i) {
-     wsb_push(&wsb, L"#define TT_");
+     wsb_push(&wsb, U"#define TT_");
      wsb_push_wstr_uppercase(&wsb, defs->items[i].name);
-     wsb_push_wchar(&wsb, L' ');
+     wsb_push_wchar(&wsb, U' ');
      wsb_push_u32(&wsb, i);
-     wsb_push(&wsb, (wchar_t *) L"\n");
+     wsb_push(&wsb, (wchar *) U"\n");
   }
 
-   wsb_push(&wsb, L"\n#define TTS_COLNT L");
+   wsb_push(&wsb, U"\n#define TTS_COLNT U");
    wsb_push_u32(&wsb, defs->len);
-   wsb_push(&wsb, L"\n\n");
+   wsb_push(&wsb, U"\n\n");
 
-   wsb_push(&wsb, L"TransitionTable *get_transition_table(void);\n\n");
+   wsb_push(&wsb, U"TransitionTable *get_transition_table(void);\n\n");
 
-   wsb_push(&wsb, L"#ifdef LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
+   wsb_push(&wsb, U"#ifdef LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
 
   for (u32 i = 0; i < defs->len; ++i) {
-     wsb_push(&wsb, L"TransitionCol table_col_");
+     wsb_push(&wsb, U"TransitionCol table_col_");
      wsb_push_wstr(&wsb, defs->items[i].name);
-     wsb_push(&wsb, L"[] = {\n");
+     wsb_push(&wsb, U"[] = {\n");
      wsb_push_atoms(&wsb, defs->items[i].atoms, 1, 0, true, false);
-     wsb_push(&wsb, L"};\n\n");
+     wsb_push(&wsb, U"};\n\n");
   }
 
-  wsb_push(&wsb, L"TransitionRow table_rows[] = {\n");
+  wsb_push(&wsb, U"TransitionRow table_rows[] = {\n");
   for (u32 i = 0; i < defs->len; ++i) {
-    wsb_push(&wsb, L"  { table_col_");
+    wsb_push(&wsb, U"  { table_col_");
     wsb_push_wstr(&wsb, defs->items[i].name);
-    wsb_push(&wsb, L", sizeof(");
-    wsb_push(&wsb, L"table_col_");
+    wsb_push(&wsb, U", sizeof(");
+    wsb_push(&wsb, U"table_col_");
     wsb_push_wstr(&wsb, defs->items[i].name);
-    wsb_push(&wsb, L") / sizeof(TransitionCol) },\n");
+    wsb_push(&wsb, U") / sizeof(TransitionCol) },\n");
   }
-  wsb_push(&wsb, L"};\n\n");
+  wsb_push(&wsb, U"};\n\n");
 
-  wsb_push(&wsb, L"TransitionTable table = {\n");
-  wsb_push(&wsb, L"  table_rows,\n");
-  wsb_push(&wsb, L"  sizeof(table_rows) / sizeof(TransitionRow),\n");
-  wsb_push(&wsb, L"};\n\n");
+  wsb_push(&wsb, U"TransitionTable table = {\n");
+  wsb_push(&wsb, U"  table_rows,\n");
+  wsb_push(&wsb, U"  sizeof(table_rows) / sizeof(TransitionRow),\n");
+  wsb_push(&wsb, U"};\n\n");
 
-  wsb_push(&wsb, L"TransitionTable *get_transition_table(void) {\n");
-  wsb_push(&wsb, L"  return &table;\n");
-  wsb_push(&wsb, L"};\n\n");
+  wsb_push(&wsb, U"TransitionTable *get_transition_table(void) {\n");
+  wsb_push(&wsb, U"  return &table;\n");
+  wsb_push(&wsb, U"};\n\n");
 
-  wsb_push(&wsb, L"#endif // LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
-  wsb_push(&wsb, L"#endif // LEXGEN_TRANSITION_TABLE\n");
+  wsb_push(&wsb, U"#endif // LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
+  wsb_push(&wsb, U"#endif // LEXGEN_TRANSITION_TABLE\n");
 
   return wsb_to_wstr(wsb);
 }
