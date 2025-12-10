@@ -36,6 +36,18 @@ u32 wstrlenu(wchar_t *wstr, u32 len) {
   return _len;
 }
 
+Str wtou(WStr wstr) {
+  Str str;
+  str.len = wstrlenu(wstr.ptr, wstr.len);
+  str.ptr = malloc(str.len);
+
+  for (u32 i = 0, j = 0; i < wstr.len * sizeof(wchar_t); ++i)
+    if (((char *) wstr.ptr)[i])
+      str.ptr[j++] = ((char *) wstr.ptr)[i];
+
+  return str;
+}
+
 WStr wsb_to_wstr(WStringBuilder wsb) {
   return (WStr) {
     .ptr = wsb.buffer,

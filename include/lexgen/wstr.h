@@ -24,6 +24,7 @@ typedef struct {
 
 u32  wstrlen(wchar_t *wstr);
 u32  wstrlenu(wchar_t *wstr, u32 len);
+Str  wtou(WStr wstr);
 WStr wsb_to_wstr(WStringBuilder wsb);
 void wsb_push(WStringBuilder *wsb, wchar_t *wstr);
 void wsb_push_wchar_t(WStringBuilder *wsb, wchar_t _char);
