@@ -27,7 +27,7 @@ u32  wstrlenu(wchar_t *wstr, u32 len);
 Str  wtou(WStr wstr);
 WStr wsb_to_wstr(WStringBuilder wsb);
 void wsb_push(WStringBuilder *wsb, wchar_t *wstr);
-void wsb_push_wchar_t(WStringBuilder *wsb, wchar_t _char);
+void wsb_push_wchar(WStringBuilder *wsb, wchar_t _char);
 void wsb_push_wstr(WStringBuilder *wsb, WStr wstr);
 void wsb_push_wstr_uppercase(WStringBuilder *wsb, WStr wstr);
 void wsb_push_u32(WStringBuilder *wsb, u32 num);

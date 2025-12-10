@@ -59,7 +59,7 @@ void wsb_push(WStringBuilder *wsb, wchar_t *wstr) {
   wsb_push_wstr(wsb, WSTR(wstr, wstrlen(wstr)));
 }
 
-void wsb_push_wchar_t(WStringBuilder *wsb, wchar_t wchar_t) {
+void wsb_push_wchar(WStringBuilder *wsb, wchar_t wchar_t) {
   wsb_reserve_space(wsb, 1);
   wsb->buffer[wsb->len++] = wchar_t;
 }
