@@ -100,6 +100,7 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len, u32 *char
 Str table_matches(TransitionTable *table, Str *text, u64 *token_id, u32 *char_len) {
   Str lexeme = { text->ptr, 0 };
   u64 longest_token_id = (u64) -1;
+  *char_len = 0;
 
   for (u32 i = 0; i < table->len; ++i) {
     u32 new_lexeme_len = 0;
@@ -107,7 +108,7 @@ Str table_matches(TransitionTable *table, Str *text, u64 *token_id, u32 *char_le
     bool row_match = row_matches(table->items + i, *text,
                                  &new_lexeme_len, &new_char_len);
 
-    if (row_match && new_lexeme_len > lexeme.len) {
+    if (row_match && new_char_len > *char_len) {
       lexeme.len = new_lexeme_len;
       *char_len = new_char_len;
       longest_token_id = i;
