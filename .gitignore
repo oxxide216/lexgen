@@ -1,5 +1,4 @@
-lexgen
+/lexgen
 test
-test-src/grammar.c
 test-src/grammar.h
 libs
