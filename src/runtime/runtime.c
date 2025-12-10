@@ -1,6 +1,4 @@
 #include "lexgen/runtime.h"
-#define SHL_STR_IMPLEMENTATION
-#include "shl/shl-str.h"
 
 wchar get_next_wchar(Str text, u32 index, u32 *len) {
   if (text.len <= index)
