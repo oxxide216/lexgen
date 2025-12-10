@@ -11,7 +11,7 @@
 int main(void) {
   setlocale(LC_ALL, "");
 
-  Str text = STR_LIT("  капибара\n");
+  Str text = STR_LIT("macro\n  капибара\n");
   TransitionTable *table = get_transition_table();
 
   Str lexeme;

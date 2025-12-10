@@ -1,4 +1,7 @@
 newline=\n
 skip=( |\t|\r)+
 
+macro=macro
+ident=(a-z|A-Z|_)(a-z|A-Z|_|0-9)*
+
 capybara=капибара

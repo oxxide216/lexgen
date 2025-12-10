@@ -69,11 +69,13 @@ static EscapeChar escape_chars[] = {
 
 static Arena arena = {0};
 
-void atoms_push_char(Atom **begin, Atom **end, wchar _char) {
-  for (u32 i = 0; i < ARRAY_LEN(escape_chars); ++i) {
-    if (escape_chars[i].src == _char) {
-      _char = escape_chars[i].dest;
-      break;
+void atoms_push_char(Atom **begin, Atom **end, wchar _char, bool is_escaped) {
+  if (is_escaped) {
+    for (u32 i = 0; i < ARRAY_LEN(escape_chars); ++i) {
+      if (escape_chars[i].src == _char) {
+        _char = escape_chars[i].dest;
+        break;
+      }
     }
   }
 
@@ -103,7 +105,7 @@ Atom *parse(WStr source_text, u32 *i, bool is_in_block) {
     wchar _char = source_text.ptr[*i];
 
     if (is_escaped) {
-      atoms_push_char(&result, &result_end, _char);
+      atoms_push_char(&result, &result_end, _char, true);
       is_escaped = false;
       ++*i;
       continue;
@@ -197,7 +199,7 @@ Atom *parse(WStr source_text, u32 *i, bool is_in_block) {
     } break;
 
     default: {
-      atoms_push_char(&result, &result_end, _char);
+      atoms_push_char(&result, &result_end, _char, false);
     } break;
     }
 

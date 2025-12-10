@@ -1,3 +1,5 @@
+#include <wchar.h>
+
 #include "lexgen/runtime.h"
 
 wchar get_next_wchar(Str text, u32 index, u32 *len) {
