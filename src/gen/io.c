@@ -15,7 +15,7 @@ WStr read_file(char *path) {
 
   wchar_t _char;
   while ((_char = fgetwc(file)) != (wchar_t) EOF)
-    wsb_push_wchar_t(&wsb, _char);
+    wsb_push_wchar(&wsb, _char);
 
   fclose(file);
 

@@ -412,7 +412,7 @@ WStr defs_gen_table(Defs *defs) {
   for (u32 i = 0; i < defs->len; ++i) {
      wsb_push(&wsb, L"#define TT_");
      wsb_push_wstr_uppercase(&wsb, defs->items[i].name);
-     wsb_push_wchar_t(&wsb, L' ');
+     wsb_push_wchar(&wsb, L' ');
      wsb_push_u32(&wsb, i);
      wsb_push(&wsb, (wchar_t *) L"\n");
   }
