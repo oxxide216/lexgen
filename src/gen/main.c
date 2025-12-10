@@ -1,9 +1,11 @@
-#include <ctype.h>
+#include <wctype.h>
+#include <locale.h>
+
+#define SHL_DEFS_LL_ALLOC(size) arena_alloc(&arena, size)
 
 #include "lexgen/io.h"
+#include "lexgen/arena.h"
 #include "shl/shl-defs.h"
-#define SHL_ARENA_IMPLEMENTATION
-#include "shl/shl-arena.h"
 #define SHL_STR_IMPLEMENTATION
 #include "shl/shl-str.h"
 #include "shl/shl-log.h"
@@ -20,12 +22,11 @@ typedef enum {
 typedef struct Atom Atom;
 
 typedef struct {
-  i8   _char;
-  bool is_escaped;
+  wchar_t _char;
 } Char;
 
 typedef struct {
-  i8 min, max;
+  wchar_t min, max;
 } Range;
 
 typedef struct {
@@ -49,65 +50,72 @@ struct Atom {
 };
 
 typedef struct {
-  Str   name;
+  WStr  name;
   Atom* atoms;
 } Def;
 
 typedef Da(Def) Defs;
 
-i8 escape_chars[] = { 'n', 'r', 't', '\\' };
+typedef struct {
+  wchar_t src;
+  wchar_t dest;
+} EscapeChar;
 
-void atoms_push_char(Atom **begin, Atom **end,
-                     i8 _char, bool is_escaped) {
+static EscapeChar escape_chars[] = {
+  { L'n', L'\n' },
+  { L'r', L'\r' },
+  { L't', L'\t' },
+};
+
+static Arena arena = {0};
+
+void atoms_push_char(Atom **begin, Atom **end, wchar_t _char) {
+  for (u32 i = 0; i < ARRAY_LEN(escape_chars); ++i) {
+    if (escape_chars[i].src == _char) {
+      _char = escape_chars[i].dest;
+      break;
+    }
+  }
+
   Atom new_atom = {
     AtomKindChar,
-    { { _char, is_escaped } },
+    { { _char } },
     NULL,
   };
 
   if (*end && (*end)->kind == AtomKindRange && (*end)->as.range.max == 0) {
     (*end)->as.range.max = _char;
   } else {
-    LL_PREPEND((*begin), (*end), Atom);
+    LL_PREPEND(*begin, *end, Atom);
     **end = new_atom;
   }
 }
 
-Atom *parse(Str source_text, u32 *i, bool is_in_block) {
+Atom *parse(WStr source_text, u32 *i, bool is_in_block) {
   Atom *result = NULL;
   Atom *result_end = NULL;
   bool is_escaped = false;
 
   while (*i < source_text.len &&
-         (source_text.ptr[*i] != '\n'&&
-          (source_text.ptr[*i] != ')' ||
+         (source_text.ptr[*i] != L'\n'&&
+          (source_text.ptr[*i] != L')' ||
            is_in_block || is_escaped))) {
-    i8 _char = source_text.ptr[*i];
+    wchar_t _char = source_text.ptr[*i];
 
     if (is_escaped) {
-      bool is_char_escaped = false;
-
-      for (u32 j = 0; j < ARRAY_LEN(escape_chars); ++j) {
-        if (_char == escape_chars[j]) {
-          is_char_escaped = true;
-          break;
-        }
-      }
-
-      atoms_push_char(&result, &result_end,
-                      _char, is_char_escaped);
+      atoms_push_char(&result, &result_end, _char);
       is_escaped = false;
       ++*i;
       continue;
-    } else if (_char == '\\') {
+    } else if (_char == L'\\') {
       is_escaped = true;
       ++*i;
       continue;
     }
 
     switch (_char) {
-    case '+':
-    case '*': {
+    case L'+':
+    case L'*': {
       if (!result_end) {
         ERROR("No operand was found\n");
         exit(1);
@@ -117,14 +125,14 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
         exit(1);
       }
 
-      Atom *new_atom = aalloc(sizeof(Atom));
+      Atom *new_atom = arena_alloc(&arena, sizeof(Atom));
       *new_atom = *result_end;
-      if (_char == '+')
+      if (_char == L'+')
         LL_PREPEND(result, result_end, Atom);
       *result_end = (Atom) { AtomKindLoop, { .loop = new_atom }, NULL };
     } break;
 
-    case '-': {
+    case L'-': {
       if (!result_end || *i + 1 >= source_text.len) {
         ERROR("No operand was found\n");
         exit(1);
@@ -136,12 +144,12 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
 
       *result_end = (Atom) {
         AtomKindRange,
-        { { result_end->as._char._char, 0 } },
+        { { result_end->as._char._char } },
         NULL,
       };
     } break;
 
-    case '|': {
+    case L'|': {
       if (!result || *i + 1 >= source_text.len) {
         ERROR("No operand was found\n");
         exit(1);
@@ -150,20 +158,20 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
       ++*i;
       Atom *rhs = parse(source_text, i, is_in_block);
       --*i;
-      Atom *new_atom = aalloc(sizeof(Atom));
+      Atom *new_atom = arena_alloc(&arena, sizeof(Atom));
       *new_atom = (Atom) { AtomKindOr, { .or = { result, rhs } }, NULL };
       result = new_atom;
       result_end = new_atom;
     } break;
 
-    case '(': {
+    case L'(': {
       ++*i;
       Atom *body = parse(source_text, i, true);
       LL_PREPEND(result, result_end, Atom);
       *result_end = (Atom) { AtomKindBlock, { .block = body }, NULL };
     } break;
 
-    case ')': {
+    case L')': {
       if (is_in_block)
         return result;
 
@@ -171,13 +179,13 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
       exit(1);
     } break;
 
-    case '?': {
+    case L'?': {
       if (!result_end || *i + 1 >= source_text.len) {
         ERROR("No operand was found\n");
         exit(1);
       }
 
-      Atom *new_atom = aalloc(sizeof(Atom));
+      Atom *new_atom = arena_alloc(&arena, sizeof(Atom));
       *new_atom = *result_end;
       *result_end = (Atom) {
         AtomKindOptional,
@@ -189,8 +197,7 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
     } break;
 
     default: {
-      atoms_push_char(&result, &result_end,
-                      _char, false);
+      atoms_push_char(&result, &result_end, _char);
     } break;
     }
 
@@ -201,42 +208,52 @@ Atom *parse(Str source_text, u32 *i, bool is_in_block) {
   return result;
 }
 
-Defs create_defs(Str source_text) {
+Defs create_defs(WStr source_text) {
   Defs defs = {0};
 
+  u32 row = 1;
+  u32 col = 1;
   u32 i = 0;
   while (i < source_text.len) {
-    if (source_text.ptr[i] == '\n') {
+    if (source_text.ptr[i] == L'\n') {
+      ++row;
+      col = 1;
       ++i;
       continue;
-    } else if (source_text.ptr[i] == '#') {
-      while (i < source_text.len && source_text.ptr[i] != '\n')
+    } else if (source_text.ptr[i] == L'#') {
+      while (i < source_text.len && source_text.ptr[i] != L'\n')
         ++i;
+      ++row;
+      col = 1;
       ++i;
     }
 
-    Str name = STR(source_text.ptr + i, 0);
+    WStr name = WSTR(source_text.ptr + i, 0);
     while (i < source_text.len &&
-           (isalnum(source_text.ptr[i]) ||
-            source_text.ptr[i] == '_')) {
+           (iswalnum(source_text.ptr[i]) ||
+            source_text.ptr[i] == L'_')) {
       ++name.len;
       ++i;
     }
 
     if (name.len == 0) {
-      ERROR("Expected identifier, but got %c\n", source_text.ptr[i]);
+      wchar_t _char[2] = { source_text.ptr[i], 0 };
+      PERROR("%u:%u: ", "expected identifier, but got `%s`\n", row, col, (char *) _char);
       exit(1);
     }
 
     if (i == source_text.len) {
-      ERROR("Expected `=`, but got EOF\n");
-      exit(1);
-    }
-    if (source_text.ptr[i] != '=') {
-      ERROR("Expected `=`, but got `%c`\n", source_text.ptr[i]);
+      PERROR("%u:%u: ", "expected `=`, but got EOF\n", row, col);
       exit(1);
     }
 
+    if (source_text.ptr[i] != L'=') {
+      wchar_t _char[2] = { source_text.ptr[i], 0 };
+      PERROR("%u:%u: ", "expected `=`, but got `%s`\n", row, col, (char *) _char);
+      exit(1);
+    }
+
+    ++col;
     ++i;
 
     Atom *atoms = parse(source_text, &i, false);
@@ -278,11 +295,11 @@ void atom_max_state(Atom *atom, u32 *max_state) {
 }
 
 
-u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
+u32 wsb_push_atoms(WStringBuilder *wsb, Atom *atoms, u32 current_state,
                   u32 expected_target_state, bool is_on_top_level,
                   bool is_in_loop) {
   if (current_state == 0) {
-    ERROR("Unreachable\n");
+    ERROR("Lnreachable\n");
     exit(1);
   }
 
@@ -300,37 +317,27 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
 
     switch (atom->kind) {
     case AtomKindChar: {
-      sb_push(sb, "  { ");
-      sb_push_u32(sb, current_state);
-      sb_push(sb, ", '");
-      if (atom->as._char.is_escaped ||
-          atom->as._char._char == '\'')
-        sb_push_char(sb, '\\');
-      sb_push_char(sb, atom->as._char._char);
-      sb_push(sb, "', '");
-      if (atom->as._char.is_escaped ||
-          atom->as._char._char == '\'')
-        sb_push_char(sb, '\\');
-      sb_push_char(sb, atom->as._char._char);
-      sb_push(sb, "', ");
-      sb_push_u32(sb, target_state);
-      sb_push(sb, " },\n");
+      wsb_push(wsb, L"  { ");
+      wsb_push_u32(wsb, current_state);
+      wsb_push(wsb, L", ");
+      wsb_push_u32(wsb, atom->as._char._char);
+      wsb_push(wsb, L", ");
+      wsb_push_u32(wsb, atom->as._char._char);
+      wsb_push(wsb, L", ");
+      wsb_push_u32(wsb, target_state);
+      wsb_push(wsb, L" },\n");
     } break;
 
     case AtomKindRange: {
-      sb_push(sb, "  { ");
-      sb_push_u32(sb, current_state);
-      sb_push(sb, ", '");
-      if (atom->as.range.min == '\'')
-        sb_push_char(sb, '\\');
-      sb_push_char(sb, atom->as.range.min);
-      sb_push(sb, "', '");
-      if (atom->as.range.max == '\'')
-        sb_push_char(sb, '\\');
-      sb_push_char(sb, atom->as.range.max);
-      sb_push(sb, "', ");
-      sb_push_u32(sb, target_state);
-      sb_push(sb, " },\n");
+      wsb_push(wsb, L"  { ");
+      wsb_push_u32(wsb, current_state);
+      wsb_push(wsb, L", ");
+      wsb_push_u32(wsb, atom->as.range.min);
+      wsb_push(wsb, L", ");
+      wsb_push_u32(wsb, atom->as.range.max);
+      wsb_push(wsb, L", ");
+      wsb_push_u32(wsb, target_state);
+      wsb_push(wsb, L" },\n");
     } break;
 
     case AtomKindLoop: {
@@ -344,14 +351,14 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
       if (expected_target_state - target_state >= state_offset)
         target_state += state_offset;
 
-      sb_push_atoms(sb, atom->as.loop, current_state,
+      wsb_push_atoms(wsb, atom->as.loop, current_state,
                     current_state, false, true);
 
-      sb_push(sb, "  { ");
-      sb_push_u32(sb, current_state);
-      sb_push(sb, ", -1, -1, ");
-      sb_push_u32(sb, target_state);
-      sb_push(sb, " },\n");
+      wsb_push(wsb, L"  { ");
+      wsb_push_u32(wsb, current_state);
+      wsb_push(wsb, L", -1, -1, ");
+      wsb_push_u32(wsb, target_state);
+      wsb_push(wsb, L" },\n");
     } break;
 
     case AtomKindOr: {
@@ -366,27 +373,26 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
       if (!is_in_loop && expected_target_state - target_state >= state_offset)
         target_state += state_offset;
 
-      sb_push_atoms(sb, atom->as.or.lhs, current_state,
+      wsb_push_atoms(wsb, atom->as.or.lhs, current_state,
                     target_state, is_on_top_level, false);
-      sb_push_atoms(sb, atom->as.or.rhs, current_state,
+      wsb_push_atoms(wsb, atom->as.or.rhs, current_state,
                     target_state, is_on_top_level, false);
     } break;
 
     case AtomKindBlock: {
-      target_state = sb_push_atoms(sb, atom->as.block, current_state,
+      target_state =wsb_push_atoms(wsb, atom->as.block, current_state,
                                    target_state, false, false);
     } break;
 
     case AtomKindOptional: {
-      sb_push_atoms(sb, atom->as.optional, current_state,
+      wsb_push_atoms(wsb, atom->as.optional, current_state,
                     target_state, false, false);
 
-      sb_push(sb, "  { ");
-      sb_push_u32(sb, current_state);
-      sb_push(sb, ", -1, -1, ");
-      sb_push_u32(sb, target_state);
-      sb_push(sb, " },\n");
-
+      wsb_push(wsb, L"  { ");
+      wsb_push_u32(wsb, current_state);
+      wsb_push(wsb, L", -1, -1, ");
+      wsb_push_u32(wsb, target_state);
+      wsb_push(wsb, L" },\n");
     } break;
     }
 
@@ -397,85 +403,85 @@ u32 sb_push_atoms(StringBuilder *sb, Atom *atoms, u32 current_state,
   return target_state;
 }
 
-void sb_push_str_uppercase(StringBuilder *sb, Str str) {
-  for (u32 i = 0; i < str.len; ++i) {
-    char ch = str.ptr[i];
-    if (str.ptr[i] >= 97 && str.ptr[i] <=122)
-      ch -= 32;
-    sb_push_char(sb, ch);
+WStr defs_gen_table(Defs *defs) {
+  WStringBuilder  wsb = {0};
+
+   wsb_push(&wsb, L"#ifndef LEXGEN_TRANSITION_TABLE\n");
+   wsb_push(&wsb, L"#define LEXGEN_TRANSITION_TABLE\n\n");
+
+  for (u32 i = 0; i < defs->len; ++i) {
+     wsb_push(&wsb, L"#define TT_");
+     wsb_push_wstr_uppercase(&wsb, defs->items[i].name);
+     wsb_push_wchar_t(&wsb, L' ');
+     wsb_push_u32(&wsb, i);
+     wsb_push(&wsb, (wchar_t *) L"\n");
   }
+
+   wsb_push(&wsb, L"\n#define TTS_COLNT L");
+   wsb_push_u32(&wsb, defs->len);
+   wsb_push(&wsb, L"\n\n");
+
+   wsb_push(&wsb, L"TransitionTable *get_transition_table(void);\n\n");
+
+   wsb_push(&wsb, L"#ifdef LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
+
+  for (u32 i = 0; i < defs->len; ++i) {
+     wsb_push(&wsb, L"TransitionCol table_col_");
+     wsb_push_wstr(&wsb, defs->items[i].name);
+     wsb_push(&wsb, L"[] = {\n");
+     wsb_push_atoms(&wsb, defs->items[i].atoms, 1, 0, true, false);
+     wsb_push(&wsb, L"};\n\n");
+  }
+
+  wsb_push(&wsb, L"TransitionRow table_rows[] = {\n");
+  for (u32 i = 0; i < defs->len; ++i) {
+    wsb_push(&wsb, L"  { table_col_");
+    wsb_push_wstr(&wsb, defs->items[i].name);
+    wsb_push(&wsb, L", sizeof(");
+    wsb_push(&wsb, L"table_col_");
+    wsb_push_wstr(&wsb, defs->items[i].name);
+    wsb_push(&wsb, L") / sizeof(TransitionCol) },\n");
+  }
+  wsb_push(&wsb, L"};\n\n");
+
+  wsb_push(&wsb, L"TransitionTable table = {\n");
+  wsb_push(&wsb, L"  table_rows,\n");
+  wsb_push(&wsb, L"  sizeof(table_rows) / sizeof(TransitionRow),\n");
+  wsb_push(&wsb, L"};\n\n");
+
+  wsb_push(&wsb, L"TransitionTable *get_transition_table(void) {\n");
+  wsb_push(&wsb, L"  return &table;\n");
+  wsb_push(&wsb, L"};\n\n");
+
+  wsb_push(&wsb, L"#endif // LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
+  wsb_push(&wsb, L"#endif // LEXGEN_TRANSITION_TABLE\n");
+
+  return wsb_to_wstr(wsb);
 }
 
-Str defs_gen_table(Defs *defs) {
-  StringBuilder sb = {0};
-
-  sb_push(&sb, "#ifndef LEXGEN_TRANSITION_TABLE\n");
-  sb_push(&sb, "#define LEXGEN_TRANSITION_TABLE\n\n");
-
-  for (u32 i = 0; i < defs->len; ++i) {
-    sb_push(&sb, "#define TT_");
-    sb_push_str_uppercase(&sb, defs->items[i].name);
-    sb_push_char(&sb, ' ');
-    sb_push_u32(&sb, i);
-    sb_push(&sb, "\n");
-  }
-
-  sb_push(&sb, "\n#define TTS_COUNT ");
-  sb_push_u32(&sb, defs->len);
-  sb_push(&sb, "\n\n");
-
-  sb_push(&sb, "TransitionTable *get_transition_table(void);\n\n");
-
-  sb_push(&sb, "#ifdef LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
-
-  for (u32 i = 0; i < defs->len; ++i) {
-    sb_push(&sb, "TransitionCol table_col_");
-    sb_push_str(&sb, defs->items[i].name);
-    sb_push(&sb, "[] = {\n");
-    sb_push_atoms(&sb, defs->items[i].atoms, 1, 0, true, false);
-    sb_push(&sb, "};\n\n");
-  }
-
-  sb_push(&sb, "TransitionRow table_rows[] = {\n");
-  for (u32 i = 0; i < defs->len; ++i) {
-    sb_push(&sb, "  { table_col_");
-    sb_push_str(&sb, defs->items[i].name);
-    sb_push(&sb, ", sizeof(");
-    sb_push(&sb, "table_col_");
-    sb_push_str(&sb, defs->items[i].name);
-    sb_push(&sb, ") / sizeof(TransitionCol) },\n");
-  }
-  sb_push(&sb, "};\n\n");
-
-  sb_push(&sb, "TransitionTable table = {\n");
-  sb_push(&sb, "  table_rows,\n");
-  sb_push(&sb, "  sizeof(table_rows) / sizeof(TransitionRow),\n");
-  sb_push(&sb, "};\n\n");
-
-  sb_push(&sb, "TransitionTable *get_transition_table(void) {\n");
-  sb_push(&sb, "  return &table;\n");
-  sb_push(&sb, "};\n\n");
-
-  sb_push(&sb, "#endif // LEXGEN_TRANSITION_TABLE_IMPLEMENTATION\n\n");
-  sb_push(&sb, "#endif // LEXGEN_TRANSITION_TABLE\n");
-
-  return sb_to_str(sb);
-}
-
-int main(i32 argv, char **argc) {
-  if (argv < 2) {
+int main(i32 argc, char **argv) {
+  if (argc < 2) {
     ERROR("Output file was not provided\n");
-    exit(1);
+    return 1;
   }
 
-  if (argv < 3) {
+  if (argc < 3) {
     ERROR("Input file was not provided\n");
     return 1;
   }
 
-  Str source_text = read_file(argc[2]);
+  setlocale(LC_ALL, "");
+
+  WStr source_text = read_file(argv[2]);
   Defs defs = create_defs(source_text);
-  write_file(argc[1], defs_gen_table(&defs));
+  WStr dest_text = defs_gen_table(&defs);
+  write_file(argv[1], dest_text);
+
+  free(source_text.ptr);
+  arena_free(&arena);
+  if (defs.items)
+    free(defs.items);
+  free(dest_text.ptr);
 
   return 0;
 }

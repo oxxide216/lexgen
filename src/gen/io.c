@@ -1,33 +1,39 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <wchar.h>
 
 #include "lexgen/io.h"
+#include "lexgen/wstr.h"
+#include "shl/shl-defs.h"
 
-Str read_file(char *path) {
-  Str content;
-
+WStr read_file(char *path) {
   FILE *file = fopen(path, "r");
   if (!file)
-    return (Str) {0};
+    return (WStr) {0};
 
-  fseek(file, 0, SEEK_END);
-  content.len = ftell(file);
-  content.ptr = malloc(content.len);
-  fseek(file, 0, SEEK_SET);
-  fread(content.ptr, 1, content.len, file);
+  WStringBuilder wsb = {0};
+
+  wchar_t _char;
+  while ((_char = fgetwc(file)) != (wchar_t) EOF)
+    wsb_push_wchar_t(&wsb, _char);
+
   fclose(file);
+
+  WStr content = wsb_to_wstr(wsb);
 
   return content;
 }
 
-bool write_file(char *path, Str content) {
+bool write_file(char *path, WStr content) {
   FILE *file = fopen(path, "w");
   if (!file) {
     return false;
   }
 
-  fwrite(content.ptr, sizeof(*content.ptr), content.len, file);
+  for (u32 i = 0; i < content.len * sizeof(wchar_t); ++i)
+    if (((char *) content.ptr)[i])
+      fputc(((char *) content.ptr)[i], file);
+
   fclose(file);
 
   return true;

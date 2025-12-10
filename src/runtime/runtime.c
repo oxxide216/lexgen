@@ -1,9 +1,9 @@
 #include "lexgen/runtime.h"
 
-static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
+static bool row_matches(TransitionRow *row, WStr text, u32 *lexeme_len) {
   u32 state = 1;
 
-  for (u32 i = 0; i <= (u32) text.len; ++i) {
+  for (u32 i = 0; i <= text.len; ++i) {
     bool found = false;
 
     for (u32 j = 0; j < row->cols_count; ++j) {
@@ -12,12 +12,12 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
       if (col->prev_state != state)
         continue;
 
-      if (col->min_char != (i8)-1 && (i == (u32) text.len ||
-                                      text.ptr[i] < col->min_char ||
-                                      text.ptr[i] > col->max_char))
+      if (col->min_char != (wchar_t) -1 && (i == text.len ||
+                                          text.ptr[i] < col->min_char ||
+                                          text.ptr[i] > col->max_char))
         continue;
 
-      if (col->min_char == (i8) -1)
+      if (col->min_char == (wchar_t) -1)
         --i;
 
       found = true;
@@ -30,16 +30,15 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
       break;
     }
 
-    if (!found) {
+    if (!found)
       break;
-    }
   }
 
   return false;
 }
 
-Str table_matches(TransitionTable *table, Str *text, u64 *token_id) {
-  Str lexeme = { text->ptr, 0 };
+WStr table_matches(TransitionTable *table, WStr *text, u64 *token_id) {
+  WStr lexeme = { text->ptr, 0 };
   u64 longest_token_id = (u64) -1;
 
   for (u32 i = 0; i < table->len; ++i) {
@@ -47,7 +46,7 @@ Str table_matches(TransitionTable *table, Str *text, u64 *token_id) {
     bool row_match = row_matches(table->items + i, *text,
                                  &new_lexeme_len);
 
-    if (row_match && new_lexeme_len > (u32) lexeme.len) {
+    if (row_match && new_lexeme_len > lexeme.len) {
       lexeme.len = new_lexeme_len;
       longest_token_id = i;
     }
