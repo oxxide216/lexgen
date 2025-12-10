@@ -53,13 +53,14 @@ wchar get_next_wchar(Str text, u32 index, u32 *len) {
   return result;
 }
 
-static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
+static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len, u32 *char_len) {
   u32 state = 1;
-  u32 index = 0;
+  u32 byte_index = 0;
+  u32 char_index = 0;
   u32 wchar_len;
   wchar _wchar;
 
-  while ((_wchar = get_next_wchar(text, index, &wchar_len)) != U'\0') {
+  while ((_wchar = get_next_wchar(text, byte_index, &wchar_len)) != U'\0') {
     bool found = false;
 
     for (u32 j = 0; j < row->cols_count; ++j) {
@@ -73,13 +74,16 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
            _wchar > col->max_char))
         continue;
 
-      if (col->min_char != (wchar) -1)
-        index += wchar_len;
+      if (col->min_char != (wchar) -1) {
+        byte_index += wchar_len;
+        ++char_index;
+      }
 
       found = true;
       state = col->next_state;
       if (state == 0) {
-        *lexeme_len = index;
+        *lexeme_len = byte_index;
+        *char_len = char_index;
         return true;
       }
 
@@ -93,17 +97,19 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len) {
   return false;
 }
 
-Str table_matches(TransitionTable *table, Str *text, u64 *token_id) {
+Str table_matches(TransitionTable *table, Str *text, u64 *token_id, u32 *char_len) {
   Str lexeme = { text->ptr, 0 };
   u64 longest_token_id = (u64) -1;
 
   for (u32 i = 0; i < table->len; ++i) {
     u32 new_lexeme_len = 0;
+    u32 new_char_len = 0;
     bool row_match = row_matches(table->items + i, *text,
-                                 &new_lexeme_len);
+                                 &new_lexeme_len, &new_char_len);
 
     if (row_match && new_lexeme_len > lexeme.len) {
       lexeme.len = new_lexeme_len;
+      *char_len = new_char_len;
       longest_token_id = i;
     }
   }

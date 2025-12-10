@@ -16,10 +16,11 @@ int main(void) {
 
   Str lexeme;
   u64 token_id;
+  u32 char_len;
   u32 row = 1, col = 1;
 
   while (true) {
-    lexeme = table_matches(table, &text, &token_id);
+    lexeme = table_matches(table, &text, &token_id, &char_len);
 
     if (token_id == (u64) -1) {
       if (text.len == 0)
@@ -39,7 +40,7 @@ int main(void) {
     if (token_id == TT_SKIP)
       continue;
 
-    printf("%lu :: "STR_FMT"\n", token_id, STR_ARG(lexeme));
+    printf("%lu :: "STR_FMT" :: %u:%u\n", token_id, STR_ARG(lexeme), lexeme.len, char_len);
   }
 
   return 0;

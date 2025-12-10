@@ -20,4 +20,4 @@ typedef struct {
 } TransitionTable;
 
 wchar get_next_wchar(Str text, u32 index, u32 *len);
-Str   table_matches(TransitionTable *table, Str *text, u64 *token_id);
+Str   table_matches(TransitionTable *table, Str *text, u64 *token_id, u32 *char_len);
