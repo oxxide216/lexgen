@@ -22,9 +22,12 @@ typedef struct {
   u32      len;
 } WStringBuilder;
 
+typedef void *(*LexgenAlloc)(u64 size);
+
 u32  wstrlen(wchar_t *wstr);
 u32  wstrlenu(wchar_t *wstr, u32 len);
-Str  wtou(WStr wstr);
+void wtou(char *dest, WStr wstr);
+Str  wtou_alloc(WStr wstr, LexgenAlloc alloc);
 WStr wsb_to_wstr(WStringBuilder wsb);
 void wsb_push(WStringBuilder *wsb, wchar_t *wstr);
 void wsb_push_wchar(WStringBuilder *wsb, wchar_t _char);
