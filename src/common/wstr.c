@@ -17,6 +17,20 @@ static void wsb_reserve_space(WStringBuilder *wsb, u32 amount) {
   }
 }
 
+static void sb_reserve_space(StringBuilder *sb, u32 amount) {
+  if (amount > sb->cap - sb->len) {
+    if (sb->cap != 0) {
+      while (amount > sb->cap - sb->len)
+        sb->cap *= 2;
+
+      sb->buffer = realloc(sb->buffer, sb->cap + 1);
+    } else {
+      sb->cap += amount;
+      sb->buffer = malloc(sb->cap + 1);
+    }
+  }
+}
+
 u32 wstrlen(wchar *wstr) {
   u32 len = 0;
 
@@ -53,9 +67,9 @@ void wsb_push(WStringBuilder *wsb, wchar *wstr) {
   wsb_push_wstr(wsb, WSTR(wstr, wstrlen(wstr)));
 }
 
-void wsb_push_wchar(WStringBuilder *wsb, wchar wchar) {
+void wsb_push_wchar(WStringBuilder *wsb, wchar _wchar) {
   wsb_reserve_space(wsb, 1);
-  wsb->buffer[wsb->len++] = wchar;
+  wsb->buffer[wsb->len++] = _wchar;
 }
 
 void wsb_push_wstr(WStringBuilder *wsb, WStr wstr) {
@@ -90,5 +104,27 @@ void wsb_push_u32(WStringBuilder *wsb, u32 num) {
   for (u32 i = 1; i <= len; ++i) {
     wsb->buffer[wsb->len - i] = '0' + _num % 10;
     _num /= 10;
+  }
+}
+
+void sb_push_wchar(StringBuilder *sb, wchar _wchar) {
+  if (_wchar < 0x80) {
+    sb_reserve_space(sb, 1);
+    sb->buffer[sb->len++] = (char) _wchar;
+  } else if (_wchar < 0x800) {
+    sb_reserve_space(sb, 2);
+    sb->buffer[sb->len++] = (_wchar >> 6) | 0xC0;
+    sb->buffer[sb->len++] = (_wchar & 0x3F) | 0x80;
+  } else if (_wchar < 0x10000) {
+    sb_reserve_space(sb, 3);
+    sb->buffer[sb->len++] = (_wchar >> 12) | 0xE0;
+    sb->buffer[sb->len++] = ((_wchar >> 6) & 0x3F) | 0x80;
+    sb->buffer[sb->len++] = (_wchar & 0x3F) | 0x80;
+  } else if (_wchar < 0x110000) {
+    sb_reserve_space(sb, 4);
+    sb->buffer[sb->len++] = (_wchar >> 18) | 0xF0;
+    sb->buffer[sb->len++] = ((_wchar >> 12) & 0x3F) | 0x80;
+    sb->buffer[sb->len++] = ((_wchar >> 6) & 0x3F) | 0x80;
+    sb->buffer[sb->len++] = (_wchar & 0x3F) | 0x80;
   }
 }
