@@ -24,18 +24,13 @@ typedef struct {
   u32    len;
 } WStringBuilder;
 
-typedef void *(*LexgenAlloc)(u64 size);
-
 u32  wstrlen(wchar *wstr);
 u32  wstrlenu(wchar *wstr, u32 len);
-void wtou(char *dest, WStr wstr);
-Str  wtou_alloc(WStr wstr, LexgenAlloc alloc);
 WStr wsb_to_wstr(WStringBuilder wsb);
 void wsb_push(WStringBuilder *wsb, wchar *wstr);
 void wsb_push_wchar(WStringBuilder *wsb, wchar _wchar);
 void wsb_push_wstr(WStringBuilder *wsb, WStr wstr);
 void wsb_push_wstr_uppercase(WStringBuilder *wsb, WStr wstr);
 void wsb_push_u32(WStringBuilder *wsb, u32 num);
-void sb_push_wchar(StringBuilder *sb, wchar _wchar);
 
 #endif // WSTR_H
