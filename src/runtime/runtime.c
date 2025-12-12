@@ -62,7 +62,9 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len, u32 *char
   u32 wchar_len;
   wchar _wchar;
 
-  while ((_wchar = get_next_wchar(text, byte_index, &wchar_len)) != U'\0') {
+  while (true) {
+    _wchar = get_next_wchar(text, byte_index, &wchar_len);
+
     bool found = false;
 
     for (u32 j = 0; j < row->cols_count; ++j) {
@@ -72,7 +74,8 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len, u32 *char
         continue;
 
       if (col->min_char != (wchar) -1 &&
-          (_wchar < col->min_char ||
+          (_wchar == U'\0' ||
+           _wchar < col->min_char ||
            _wchar > col->max_char))
         continue;
 
@@ -92,7 +95,7 @@ static bool row_matches(TransitionRow *row, Str text, u32 *lexeme_len, u32 *char
       break;
     }
 
-    if (!found)
+    if (!found || _wchar == U'\0')
       break;
   }
 
